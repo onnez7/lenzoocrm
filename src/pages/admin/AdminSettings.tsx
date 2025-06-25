@@ -109,7 +109,7 @@ export default function AdminSettings() {
               <CardContent className="space-y-4">
                 <div>
                   <Label htmlFor="timezone">Fuso Horário</Label>
-                  <select className="w-full p-2 border rounded" id="timezone">
+                  <select className="w-full p-2 border rounded text-sm" id="timezone">
                     <option value="America/Sao_Paulo">América/São Paulo (UTC-3)</option>
                     <option value="America/Manaus">América/Manaus (UTC-4)</option>
                     <option value="America/Rio_Branco">América/Rio Branco (UTC-5)</option>
@@ -117,7 +117,7 @@ export default function AdminSettings() {
                 </div>
                 <div>
                   <Label htmlFor="currency">Moeda Padrão</Label>
-                  <select className="w-full p-2 border rounded" id="currency">
+                  <select className="w-full p-2 border rounded text-sm" id="currency">
                     <option value="BRL">Real Brasileiro (R$)</option>
                     <option value="USD">Dólar Americano ($)</option>
                     <option value="EUR">Euro (€)</option>
@@ -125,7 +125,7 @@ export default function AdminSettings() {
                 </div>
                 <div>
                   <Label htmlFor="date-format">Formato de Data</Label>
-                  <select className="w-full p-2 border rounded" id="date-format">
+                  <select className="w-full p-2 border rounded text-sm" id="date-format">
                     <option value="DD/MM/YYYY">DD/MM/AAAA</option>
                     <option value="MM/DD/YYYY">MM/DD/AAAA</option>
                     <option value="YYYY-MM-DD">AAAA-MM-DD</option>
@@ -160,7 +160,7 @@ export default function AdminSettings() {
                 <Separator />
                 <div>
                   <Label htmlFor="password-policy">Política de Senhas</Label>
-                  <select className="w-full p-2 border rounded mt-1" id="password-policy">
+                  <select className="w-full p-2 border rounded mt-1 text-sm" id="password-policy">
                     <option value="strong">Forte (8+ chars, números, símbolos)</option>
                     <option value="medium">Média (6+ chars, números)</option>
                     <option value="basic">Básica (6+ chars)</option>

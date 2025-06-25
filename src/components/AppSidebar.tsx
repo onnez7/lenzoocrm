@@ -142,15 +142,6 @@ const navigationItems = [
     icon: IconUsers,
   },
   {
-    title: "Usuário",
-    url: "/user",
-    icon: IconUser,
-    subItems: [
-      { title: "Meu Perfil", url: "/user/profile" },
-      { title: "Configurações", url: "/user/settings" },
-    ],
-  },
-  {
     title: "Configurações",
     url: "/settings",
     icon: IconSettings,

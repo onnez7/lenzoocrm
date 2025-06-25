@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +25,12 @@ import {
   Pie,
   Cell
 } from "recharts";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart"
 
 const salesData = [
   { month: "Jan", sales: 12000, orders: 45 },
@@ -37,10 +42,10 @@ const salesData = [
 ];
 
 const categoryData = [
-  { name: "Óculos de Grau", value: 45, color: "#8884d8" },
-  { name: "Óculos de Sol", value: 30, color: "#82ca9d" },
-  { name: "Lentes de Contato", value: 15, color: "#ffc658" },
-  { name: "Acessórios", value: 10, color: "#ff7c7c" },
+  { name: "Óculos de Grau", value: 45, fill: "#193cb8" },
+  { name: "Óculos de Sol", value: 30, fill: "#1447e6" },
+  { name: "Lentes de Contato", value: 15, fill: "#155dfc" },
+  { name: "Acessórios", value: 10, fill: "#2b7fff" },
 ];
 
 const recentAppointments = [
@@ -55,6 +60,14 @@ const lowStockProducts = [
   { name: "Armação Ray-Ban", current: 2, min: 5 },
   { name: "Lente Antirreflexo", current: 8, min: 15 },
 ];
+
+const salesConfig = {
+  orders: {
+    label: "orders",
+    color: "var(--chart-1)",
+  },
+};
+
 
 const Dashboard = () => {
   return (
@@ -131,20 +144,22 @@ const Dashboard = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={salesData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip 
-                  formatter={(value, name) => [
-                    name === 'sales' ? `R$ ${value.toLocaleString()}` : value,
-                    name === 'sales' ? 'Vendas' : 'Pedidos'
-                  ]}
-                />
-                <Bar dataKey="sales" fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer>
+            <ChartContainer config={salesConfig}>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart accessibilityLayer data={salesData}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip 
+                    formatter={(value, name) => [
+                      name === 'sales' ? `R$ ${value.toLocaleString()}` : value,
+                      name === 'sales' ? 'Vendas' : 'Pedidos'
+                    ]}
+                  />
+                  <Bar dataKey="sales" fill="#3b82f6" radius={8} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
 
@@ -166,11 +181,11 @@ const Dashboard = () => {
                   labelLine={false}
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   outerRadius={80}
-                  fill="#8884d8"
                   dataKey="value"
+                  nameKey="name"
                 >
                   {categoryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
                   ))}
                 </Pie>
                 <Tooltip />
