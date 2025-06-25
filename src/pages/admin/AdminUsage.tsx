@@ -40,6 +40,7 @@ import {
   Pie,
   Cell
 } from "recharts";
+import { ResourceUsageList, ResourceUsageItemType } from "@/components/admin/ResourceUsageList";
 
 const systemMetrics = [
   {
@@ -145,6 +146,38 @@ const usageByPlan = [
   { plan: 'Básico', usage: 35, color: '#8884d8' },
   { plan: 'Premium', usage: 45, color: '#82ca9d' },
   { plan: 'Enterprise', usage: 20, color: '#ffc658' }
+];
+
+// Dados dos recursos mais utilizados
+const resourceUsage: ResourceUsageItemType[] = [
+  {
+    icon: Database,
+    iconClass: "text-green-600",
+    label: "Gestão de Clientes",
+    value: "45.2K calls",
+    progress: 85,
+  },
+  {
+    icon: BarChart3,
+    iconClass: "text-blue-600",
+    label: "Relatórios",
+    value: "32.1K calls",
+    progress: 65,
+  },
+  {
+    icon: Users,
+    iconClass: "text-purple-600",
+    label: "Autenticação",
+    value: "28.8K calls",
+    progress: 55,
+  },
+  {
+    icon: HardDrive,
+    iconClass: "text-orange-600",
+    label: "Backup",
+    value: "15.3K calls",
+    progress: 30,
+  },
 ];
 
 export default function AdminUsage() {
@@ -323,48 +356,7 @@ export default function AdminUsage() {
                 <CardDescription>Top recursos por consumo</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Database className="h-4 w-4 text-green-600" />
-                      <span className="font-medium">Gestão de Clientes</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-bold">45.2K calls</div>
-                      <Progress value={85} className="w-20 h-2" />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4 text-blue-600" />
-                      <span className="font-medium">Relatórios</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-bold">32.1K calls</div>
-                      <Progress value={65} className="w-20 h-2" />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-purple-600" />
-                      <span className="font-medium">Autenticação</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-bold">28.8K calls</div>
-                      <Progress value={55} className="w-20 h-2" />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <HardDrive className="h-4 w-4 text-orange-600" />
-                      <span className="font-medium">Backup</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-bold">15.3K calls</div>
-                      <Progress value={30} className="w-20 h-2" />
-                    </div>
-                  </div>
-                </div>
+                <ResourceUsageList data={resourceUsage} />
               </CardContent>
             </Card>
           </div>

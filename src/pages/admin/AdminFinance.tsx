@@ -13,7 +13,7 @@ import {
   FileText,
   CreditCard,
   AlertTriangle,
-  CheckCircle
+  Clock
 } from "lucide-react";
 
 export default function AdminFinance() {

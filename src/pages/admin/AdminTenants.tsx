@@ -59,8 +59,8 @@ export default function AdminTenants() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Inquilinos</h1>
-          <p className="text-gray-600 mt-2">Gerencie todos os inquilinos do sistema</p>
+          <h1 className="text-3xl font-bold text-gray-900">franqueados</h1>
+          <p className="text-gray-600 mt-2">Gerencie todos os franqueados do sistema</p>
         </div>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
@@ -93,9 +93,9 @@ export default function AdminTenants() {
       {/* Tenants List */}
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Inquilinos</CardTitle>
+          <CardTitle>Lista de franqueados</CardTitle>
           <CardDescription>
-            {filteredTenants.length} inquilino(s) encontrado(s)
+            {filteredTenants.length} franqueado(s) encontrado(s)
           </CardDescription>
         </CardHeader>
         <CardContent>

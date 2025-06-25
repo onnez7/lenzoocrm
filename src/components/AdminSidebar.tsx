@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/collapsible";
 import { NavUser } from "@/components/nav-user";
 import Logo from "@/components/logo";
-import { IconChevronDown } from "@tabler/icons-react";
+import { IconChevronDown, IconChartBarPopular } from "@tabler/icons-react";
 
 const data = {
   user: {
@@ -63,9 +63,9 @@ const navigationItems = [
     icon: CreditCard,
   },
   {
-    title: "Pagamentos",
-    url: "/admin/payments",
-    icon: DollarSign,
+    title: "Financeiro",
+    url: "/admin/finance",
+    icon: IconChartBarPopular,
   },
   {
     title: "Uso & Métricas",

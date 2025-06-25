@@ -53,12 +53,13 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminTenants from "@/pages/admin/AdminTenants";
 import AdminTenantDetails from "@/pages/admin/AdminTenantDetails";
 import AdminSubscriptions from "@/pages/admin/AdminSubscriptions";
-import AdminPayments from "@/pages/admin/AdminPayments";
 import AdminUsage from "@/pages/admin/AdminUsage";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import NotFound from "@/pages/NotFound";
 import AdminSupport from "@/pages/admin/AdminSupport";
 import NewRule from "@/pages/crm/NewRule";
+import AdminFinance from "@/pages/admin/AdminFinance";
+
 
 
 const queryClient = new QueryClient();
@@ -157,9 +158,9 @@ const App = () => (
             <Route path="tenants/:id" element={<AdminTenantDetails />} />
             <Route path="subscriptions" element={<AdminSubscriptions />} />
             <Route path="support" element={<AdminSupport />} />
-            <Route path="payments" element={<AdminPayments />} />
             <Route path="usage" element={<AdminUsage />} />
             <Route path="settings" element={<AdminSettings />} />
+            <Route path="finance" element={<AdminFinance />} />
           </Route>
           
           <Route path="*" element={<NotFound />} />
