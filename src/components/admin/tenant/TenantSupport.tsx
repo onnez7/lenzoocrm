@@ -182,6 +182,88 @@ export function TenantSupport() {
               <CardTitle>Tickets de Suporte</CardTitle>
               <CardDescription>Histórico de atendimento e suporte técnico</CardDescription>
             </div>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Novo Ticket
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Criar Novo Ticket</DialogTitle>
+                  <DialogDescription>
+                    Descreva seu problema ou solicitação para nossa equipe de suporte.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="title">Título</Label>
+                    <Input
+                      id="title"
+                      value={newTicket.title}
+                      onChange={(e) => setNewTicket({...newTicket, title: e.target.value})}
+                      placeholder="Descreva brevemente o problema"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="priority">Prioridade</Label>
+                      <Select 
+                        value={newTicket.priority} 
+                        onValueChange={(value: any) => setNewTicket({...newTicket, priority: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Baixa</SelectItem>
+                          <SelectItem value="medium">Média</SelectItem>
+                          <SelectItem value="high">Alta</SelectItem>
+                          <SelectItem value="urgent">Urgente</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="category">Categoria</Label>
+                      <Select 
+                        value={newTicket.category} 
+                        onValueChange={(value: any) => setNewTicket({...newTicket, category: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="technical">Técnico</SelectItem>
+                          <SelectItem value="billing">Faturamento</SelectItem>
+                          <SelectItem value="feature">Funcionalidade</SelectItem>
+                          <SelectItem value="bug">Bug</SelectItem>
+                          <SelectItem value="other">Outro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="description">Descrição</Label>
+                    <Textarea
+                      id="description"
+                      value={newTicket.description}
+                      onChange={(e) => setNewTicket({...newTicket, description: e.target.value})}
+                      placeholder="Descreva detalhadamente o problema ou solicitação"
+                      rows={4}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleCreateTicket}>
+                      Criar Ticket
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardHeader>
         <CardContent>

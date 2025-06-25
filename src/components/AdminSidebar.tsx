@@ -58,8 +58,8 @@ const navigationItems = [
     icon: FileText,
   },
   {
-    title: "Planos",
-    url: "/admin/plans",
+    title: "Suporte",
+    url: "/admin/support",
     icon: CreditCard,
   },
   {
@@ -76,11 +76,6 @@ const navigationItems = [
     title: "Configurações",
     url: "/admin/settings",
     icon: Settings,
-    subItems: [ 
-      { title: "Perfil da Ótica", url: "/settings/profile" },
-      { title: "Notas Fiscais", url: "/settings/invoices" },
-      { title: "Permissões", url: "/settings/permissions" },
-    ]
   },
 ];
 

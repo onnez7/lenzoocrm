@@ -21,7 +21,7 @@ export default function AdminTenantDetails() {
   if (!tenant) {
     return (
       <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-gray-900">Franqueado não encontrado</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Inquilino não encontrado</h2>
         <Button onClick={() => navigate('/admin/tenants')} className="mt-4">
           Voltar para lista
         </Button>

@@ -1,194 +1,169 @@
-
 import { AdminStats } from "@/components/admin/AdminStats";
+import { AdminRevenueChart } from "@/components/admin/AdminRevenueChart";
+import { AdminFranchiseesMap } from "@/components/admin/AdminFranchiseesMap";
+import { AdminTopPerformers } from "@/components/admin/AdminTopPerformers";
+import { AdminCriticalAlerts } from "@/components/admin/AdminCriticalAlerts";
+import { AdminRecentActivity } from "@/components/admin/AdminRecentActivity";
+import { AdminQuickActions } from "@/components/admin/AdminQuickActions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Bell, Users, AlertTriangle, TrendingUp } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Bell, TrendingUp, Users, AlertTriangle, Download, Filter, BarChart3 } from "lucide-react";
 
 export default function AdminDashboard() {
-  const recentActivities = [
-    {
-      id: '1',
-      type: 'new_tenant',
-      message: 'Novo inquilino "Ótica Premium" se registrou',
-      time: '2 horas atrás',
-      status: 'success'
-    },
-    {
-      id: '2',
-      type: 'payment_received',
-      message: 'Pagamento recebido de "Ótica Visão Clara" - R$ 199,90',
-      time: '4 horas atrás',
-      status: 'success'
-    },
-    {
-      id: '3',
-      type: 'support_ticket',
-      message: 'Novo ticket de suporte: "Problema na sincronização"',
-      time: '6 horas atrás',
-      status: 'warning'
-    },
-    {
-      id: '4',
-      type: 'subscription_expiring',
-      message: 'Assinatura de "Ótica Moderna" expira em 3 dias',
-      time: '1 dia atrás',
-      status: 'warning'
-    }
+  const systemHealth = {
+    status: 'healthy',
+    uptime: '99.9%',
+    responseTime: '45ms',
+    lastIncident: '3 dias atrás'
+  };
+
+  const todayHighlights = [
+    { label: 'Novos Franqueados', value: '3', trend: '+50%' },
+    { label: 'Receita Hoje', value: 'R$ 1.247,90', trend: '+23%' },
+    { label: 'Tickets Resolvidos', value: '12', trend: '+8%' },
+    { label: 'Conversões Trial', value: '2', trend: '+100%' }
   ];
-
-  const criticalAlerts = [
-    {
-      id: '1',
-      title: 'Pagamento em Atraso',
-      description: '2 Franqueandos com pagamentos pendentes há mais de 5 dias',
-      severity: 'high',
-      count: 2
-    },
-    {
-      id: '2',
-      title: 'Tickets Urgentes',
-      description: 'Tickets de alta prioridade aguardando resposta',
-      severity: 'medium',
-      count: 3
-    },
-    {
-      id: '3',
-      title: 'Uso Elevado',
-      description: 'Franqueandos próximos do limite do plano',
-      severity: 'low',
-      count: 4
-    }
-  ];
-
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'new_tenant': return <Users className="h-4 w-4" />;
-      case 'payment_received': return <TrendingUp className="h-4 w-4" />;
-      case 'support_ticket': return <AlertTriangle className="h-4 w-4" />;
-      case 'subscription_expiring': return <Bell className="h-4 w-4" />;
-      default: return <Bell className="h-4 w-4" />;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'success': return 'text-green-600 bg-green-100';
-      case 'warning': return 'text-yellow-600 bg-yellow-100';
-      case 'error': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-blue-100 text-blue-800 border-blue-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard Admin</h1>
-          <p className="text-gray-600 mt-1">Visão geral do sistema Lenzoo SaaS</p>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard Executivo</h1>
+          <p className="text-gray-600 mt-1">Controle total do sistema Lenzoo - Franqueados & Performance</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Bell className="mr-2 h-4 w-4" />
-            Notificações
+          <Button variant="outline" size="sm">
+            <Filter className="mr-2 h-4 w-4" />
+            Filtros
           </Button>
-          <Button>Gerar Relatório</Button>
+          <Button variant="outline" size="sm">
+            <Download className="mr-2 h-4 w-4" />
+            Exportar
+          </Button>
+          <Button variant="outline" size="sm" className="relative">
+            <Bell className="mr-2 h-4 w-4" />
+            Alertas
+            <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs bg-red-500">
+              7
+            </Badge>
+          </Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* System Health & Today's Highlights */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-green-700">Status do Sistema</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+              <span className="text-lg font-bold text-green-800">Operacional</span>
+            </div>
+            <p className="text-xs text-green-600 mt-1">Uptime: {systemHealth.uptime}</p>
+          </CardContent>
+        </Card>
+        
+        {todayHighlights.map((item, index) => (
+          <Card key={index} className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">{item.label}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <span className="text-lg font-bold text-gray-900">{item.value}</span>
+                <Badge variant="outline" className="text-green-600 border-green-200">
+                  {item.trend}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Main Stats */}
       <AdminStats />
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Activities */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Atividades Recentes</CardTitle>
-              <CardDescription>Últimas ações e eventos do sistema</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {recentActivities.map((activity) => (
-                  <div key={activity.id} className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                    <div className={`p-2 rounded-lg ${getStatusColor(activity.status)}`}>
-                      {getActivityIcon(activity.type)}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">{activity.message}</p>
-                      <p className="text-xs text-gray-500">{activity.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      {/* Main Dashboard Tabs */}
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+          <TabsTrigger value="franchisees">Franqueados</TabsTrigger>
+          <TabsTrigger value="financial">Financeiro</TabsTrigger>
+          <TabsTrigger value="performance">Performance</TabsTrigger>
+          <TabsTrigger value="support">Suporte</TabsTrigger>
+        </TabsList>
 
-        {/* Critical Alerts */}
-        <div>
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <AdminRevenueChart />
+            <AdminCriticalAlerts />
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <AdminRecentActivity />
+            </div>
+            <AdminTopPerformers />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="franchisees">
+          <AdminFranchiseesMap />
+        </TabsContent>
+
+        <TabsContent value="financial">
           <Card>
             <CardHeader>
-              <CardTitle>Alertas Críticos</CardTitle>
-              <CardDescription>Itens que precisam de atenção</CardDescription>
+              <CardTitle>Análise Financeira Detalhada</CardTitle>
+              <CardDescription>Receitas, custos e projeções por franqueado</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {criticalAlerts.map((alert) => (
-                  <div key={alert.id} className={`p-3 rounded-lg border ${getSeverityColor(alert.severity)}`}>
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="text-sm font-medium">{alert.title}</h4>
-                      <Badge variant="outline" className="text-xs">
-                        {alert.count}
-                      </Badge>
-                    </div>
-                    <p className="text-xs opacity-90">{alert.description}</p>
-                  </div>
-                ))}
+              <div className="text-center py-12 text-gray-500">
+                <TrendingUp className="mx-auto h-12 w-12 mb-4" />
+                <p>Módulo financeiro em desenvolvimento</p>
               </div>
             </CardContent>
           </Card>
-        </div>
-      </div>
+        </TabsContent>
+
+        <TabsContent value="performance">
+          <Card>
+            <CardHeader>
+              <CardTitle>Métricas de Performance</CardTitle>
+              <CardDescription>KPIs e benchmarks por franqueado</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-12 text-gray-500">
+                <BarChart3 className="mx-auto h-12 w-12 mb-4" />
+                <p>Dashboard de performance em desenvolvimento</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="support">
+          <Card>
+            <CardHeader>
+              <CardTitle>Central de Suporte</CardTitle>
+              <CardDescription>Tickets, SLA e satisfação do cliente</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-12 text-gray-500">
+                <Users className="mx-auto h-12 w-12 mb-4" />
+                <p>Central de suporte em desenvolvimento</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Ações Rápidas</CardTitle>
-          <CardDescription>Acesso rápido às principais funcionalidades</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Button variant="outline" className="h-20 flex-col">
-              <Users className="h-6 w-6 mb-2" />
-              <span className="text-sm">Novo Inquilino</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex-col">
-              <TrendingUp className="h-6 w-6 mb-2" />
-              <span className="text-sm">Relatório Financeiro</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex-col">
-              <AlertTriangle className="h-6 w-6 mb-2" />
-              <span className="text-sm">Ver Tickets</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex-col">
-              <Bell className="h-6 w-6 mb-2" />
-              <span className="text-sm">Configurações</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <AdminQuickActions />
     </div>
   );
 }

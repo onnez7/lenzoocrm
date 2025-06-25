@@ -32,16 +32,6 @@ npm run dev
 
 There are several ways of editing your application.
 
-**Use Lovable**
-
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-
 Follow these steps:
 
 ```sh
@@ -74,8 +64,6 @@ npm run dev
 
 ## How can I deploy this project?
 
-
-## Can I connect a custom domain to my Lovable project?
 
 Yes, you can!
 

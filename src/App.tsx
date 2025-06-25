@@ -53,11 +53,13 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminTenants from "@/pages/admin/AdminTenants";
 import AdminTenantDetails from "@/pages/admin/AdminTenantDetails";
 import AdminSubscriptions from "@/pages/admin/AdminSubscriptions";
-import AdminPlans from "@/pages/admin/AdminPlans";
 import AdminPayments from "@/pages/admin/AdminPayments";
 import AdminUsage from "@/pages/admin/AdminUsage";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import NotFound from "@/pages/NotFound";
+import AdminSupport from "@/pages/admin/AdminSupport";
+import NewRule from "@/pages/crm/NewRule";
+
 
 const queryClient = new QueryClient();
 
@@ -119,6 +121,7 @@ const App = () => (
             
             {/* CRM routes */}
             <Route path="crm" element={<CRMEnhanced />} />
+            <Route path="crm/new-rule" element={<NewRule />} />
             <Route path="crm/:clientId" element={<CRMClient />} />
             
             {/* Finance routes */}
@@ -153,7 +156,7 @@ const App = () => (
             <Route path="tenants" element={<AdminTenants />} />
             <Route path="tenants/:id" element={<AdminTenantDetails />} />
             <Route path="subscriptions" element={<AdminSubscriptions />} />
-            <Route path="plans" element={<AdminPlans />} />
+            <Route path="support" element={<AdminSupport />} />
             <Route path="payments" element={<AdminPayments />} />
             <Route path="usage" element={<AdminUsage />} />
             <Route path="settings" element={<AdminSettings />} />
