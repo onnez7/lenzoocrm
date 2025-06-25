@@ -204,7 +204,7 @@ export function AppSidebar() {
     }`;
 
     return (
-      <Sidebar className={(collapsed ? "w-14" : "w-64") + " bg-background md:bg-background"}>
+      <Sidebar className={(collapsed ? "w-14" : "w-64") + " bg-white md:bg-background z-50"}>
         <div className="flex items-center justify-between p-4 border-b">
           {!collapsed && (
             <div className="h-auto w-[120px]">
