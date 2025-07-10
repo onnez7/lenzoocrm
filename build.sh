@@ -1,12 +1,6 @@
 #!/bin/bash
 set -e
 
-echo "Installing frontend dependencies..."
-npm ci --include=optional
-
-echo "Installing backend dependencies..."
-cd backend && npm ci && cd ..
-
 echo "Building frontend..."
 npm run build
 
