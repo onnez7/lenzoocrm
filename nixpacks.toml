@@ -4,8 +4,8 @@ nixPkgs = ["nodejs_22", "bun"]
 [phases.install]
 cmds = [
   "chmod +x build.sh",
-  "npm ci --include=optional",
-  "cd backend && npm ci"
+  "npm install",
+  "cd backend && npm install"
 ]
 
 [phases.build]
