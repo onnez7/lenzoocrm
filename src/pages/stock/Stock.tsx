@@ -1,5 +1,5 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,83 +28,54 @@ import {
   Package, 
   AlertTriangle,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Loader2
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-
-// Mock data para estoque
-const mockStockData = [
-  {
-    id: "1",
-    productName: "Óculos Ray-Ban Aviador",
-    sku: "RB3025-001",
-    brand: "Ray-Ban",
-    currentStock: 15,
-    minStock: 5,
-    lastMovement: "2024-01-20",
-    movementType: "entry" as const,
-    price: 450.00,
-    totalValue: 6750.00
-  },
-  {
-    id: "2",
-    productName: "Armação Oakley OX8156",
-    sku: "OAK-8156-02",
-    brand: "Oakley",
-    currentStock: 8,
-    minStock: 10,
-    lastMovement: "2024-01-18",
-    movementType: "exit" as const,
-    price: 380.00,
-    totalValue: 3040.00
-  },
-  {
-    id: "3",
-    productName: "Lente de Contato Acuvue",
-    sku: "JJ-OASYS-30",
-    brand: "Johnson & Johnson",
-    currentStock: 25,
-    minStock: 15,
-    lastMovement: "2024-01-22",
-    movementType: "entry" as const,
-    price: 85.00,
-    totalValue: 2125.00
-  },
-  {
-    id: "4",
-    productName: "Óculos Prada PR 17WS",
-    sku: "PR-17WS-1AB",
-    brand: "Prada",
-    currentStock: 3,
-    minStock: 5,
-    lastMovement: "2024-01-15",
-    movementType: "exit" as const,
-    price: 850.00,
-    totalValue: 2550.00
-  },
-  {
-    id: "5",
-    productName: "Armação Chilli Beans",
-    sku: "CB-2024-BK",
-    brand: "Chilli Beans",
-    currentStock: 0,
-    minStock: 8,
-    lastMovement: "2024-01-10",
-    movementType: "exit" as const,
-    price: 150.00,
-    totalValue: 0.00
-  }
-];
+import { useToast } from "@/hooks/use-toast";
+import productService, { Product } from "@/services/productService";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Stock = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [stockData] = useState(mockStockData);
 
-  const filteredStock = stockData.filter(item =>
-    item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.brand.toLowerCase().includes(searchTerm.toLowerCase())
+  const loadProducts = async () => {
+    try {
+      setLoading(true);
+      let response;
+      
+      if (user?.role === 'FRANCHISE_ADMIN') {
+        response = await productService.getFranchiseProducts(1, 1000, "");
+      } else {
+        response = await productService.getProducts(1, 1000, "");
+      }
+      
+      setProducts(response.products);
+    } catch (error: any) {
+      console.error('Erro ao carregar produtos:', error);
+      toast({
+        title: "Erro",
+        description: error.response?.data?.message || "Erro ao carregar produtos",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProducts();
+  }, [user?.role]);
+
+  const filteredProducts = products.filter(product =>
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+    (product.brand_name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
   );
 
   const getStockStatus = (currentStock: number, minStock: number) => {
@@ -125,9 +96,22 @@ const Stock = () => {
     };
   };
 
-  const totalStockValue = filteredStock.reduce((sum, item) => sum + item.totalValue, 0);
-  const lowStockItems = filteredStock.filter(item => item.currentStock <= item.minStock);
-  const outOfStockItems = filteredStock.filter(item => item.currentStock === 0);
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
+  const totalStockValue = filteredProducts.reduce((sum, product) => {
+    const cost = product.cost || 0;
+    return sum + (cost * product.stock_quantity);
+  }, 0);
+
+  const lowStockItems = filteredProducts.filter(product => 
+    product.stock_quantity <= product.min_stock && product.stock_quantity > 0
+  );
+  const outOfStockItems = filteredProducts.filter(product => product.stock_quantity === 0);
 
   return (
     <div className="space-y-6">
@@ -152,7 +136,7 @@ const Stock = () => {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{filteredStock.length}</div>
+            <div className="text-2xl font-bold">{filteredProducts.length}</div>
             <p className="text-xs text-muted-foreground">produtos em estoque</p>
           </CardContent>
         </Card>
@@ -163,7 +147,7 @@ const Stock = () => {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ {totalStockValue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalStockValue)}</div>
             <p className="text-xs text-muted-foreground">valor do estoque</p>
           </CardContent>
         </Card>
@@ -198,7 +182,7 @@ const Stock = () => {
             Estoque Atual
           </CardTitle>
           <CardDescription>
-            {filteredStock.length} produtos encontrados
+            {filteredProducts.length} produtos encontrados
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -212,96 +196,104 @@ const Stock = () => {
             />
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Produto</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Estoque Atual</TableHead>
-                <TableHead>Estoque Mínimo</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Valor Unitário</TableHead>
-                <TableHead>Valor Total</TableHead>
-                <TableHead>Última Movimentação</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredStock.map((item) => {
-                const stockStatus = getStockStatus(item.currentStock, item.minStock);
-                const StatusIcon = stockStatus.icon;
-                
-                return (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{item.productName}</div>
-                        <div className="text-sm text-muted-foreground">{item.brand}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-mono">{item.sku}</TableCell>
-                    <TableCell>
-                      <span className="font-medium">{item.currentStock}</span>
-                    </TableCell>
-                    <TableCell>{item.minStock}</TableCell>
-                    <TableCell>
-                      <Badge variant={stockStatus.variant} className="flex items-center gap-1 w-fit">
-                        <StatusIcon className="h-3 w-3" />
-                        {stockStatus.label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>R$ {item.price.toFixed(2)}</TableCell>
-                    <TableCell>R$ {item.totalValue.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        {item.movementType === "entry" ? (
-                          <TrendingUp className="h-3 w-3 text-green-500" />
-                        ) : (
-                          <TrendingDown className="h-3 w-3 text-red-500" />
-                        )}
-                        <span className="text-sm">{item.lastMovement}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-background border shadow-lg">
-                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => navigate("/stock/entry")}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Entrada
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate("/stock/movements")}>
-                            <Minus className="mr-2 h-4 w-4" />
-                            Saída
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => navigate("/stock/movements")}>
-                            <Package className="mr-2 h-4 w-4" />
-                            Ver Movimentações
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-
-          {filteredStock.length === 0 && (
-            <div className="text-center py-8">
-              <Package className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-2 text-sm font-semibold">Nenhum produto encontrado</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Tente ajustar os termos de busca.
-              </p>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <span className="ml-2">Carregando estoque...</span>
             </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Produto</TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Estoque Atual</TableHead>
+                    <TableHead>Estoque Mínimo</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Valor Unitário</TableHead>
+                    <TableHead>Valor Total</TableHead>
+                    <TableHead>Última Movimentação</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredProducts.map((product) => {
+                    const stockStatus = getStockStatus(product.stock_quantity, product.min_stock);
+                    const StatusIcon = stockStatus.icon;
+                    const totalValue = (product.cost || 0) * product.stock_quantity;
+                    
+                    return (
+                      <TableRow key={product.id}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{product.name}</div>
+                            <div className="text-sm text-muted-foreground">{product.brand_name || "—"}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono">{product.sku || "—"}</TableCell>
+                        <TableCell>
+                          <span className="font-medium">{product.stock_quantity}</span>
+                        </TableCell>
+                        <TableCell>{product.min_stock}</TableCell>
+                        <TableCell>
+                          <Badge variant={stockStatus.variant} className="flex items-center gap-1 w-fit">
+                            <StatusIcon className="h-3 w-3" />
+                            {stockStatus.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{product.cost ? formatCurrency(product.cost) : "—"}</TableCell>
+                        <TableCell>{formatCurrency(totalValue)}</TableCell>
+                        <TableCell>
+                          <div className="text-sm text-muted-foreground">
+                            {product.updated_at ? new Date(product.updated_at).toLocaleDateString('pt-BR') : "—"}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="bg-background border shadow-lg">
+                              <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => navigate("/stock/entry")}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Entrada
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => navigate("/stock/movements")}>
+                                <Minus className="mr-2 h-4 w-4" />
+                                Saída
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => navigate("/stock/movements")}>
+                                <Package className="mr-2 h-4 w-4" />
+                                Ver Movimentações
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => navigate(`/products/${product.id}`)}>
+                                Ver Produto
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+
+              {filteredProducts.length === 0 && !loading && (
+                <div className="text-center py-8">
+                  <Package className="mx-auto h-12 w-12 text-muted-foreground" />
+                  <h3 className="mt-2 text-sm font-semibold">Nenhum produto encontrado</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Tente ajustar os termos de busca.
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

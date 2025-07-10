@@ -1,5 +1,6 @@
 "use client"
 import { NavLink } from "react-router-dom"
+import { useAuth } from "@/contexts/AuthContext";
 
 import {
   IconCreditCard, IconDotsVertical, IconLogout, IconUserCircle, IconSettings
@@ -34,9 +35,11 @@ export function NavUser({
     name: string
     email: string
     avatar: string
+    role: string
   }
 }) {
   const { isMobile } = useSidebar()
+  const { logout } = useAuth();
 
   return (
     <SidebarMenu>
@@ -88,12 +91,15 @@ export function NavUser({
                   Minha Conta
                 </NavLink>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <NavLink to="/plan">
-                  <IconCreditCard className="mr-2 h-4 w-4"/>
-                  Plano
-                </NavLink>
-              </DropdownMenuItem>
+              {/* Só mostra o menu Plano para FRANCHISE_ADMIN */}
+              {user.role === "FRANCHISE_ADMIN" && (
+                <DropdownMenuItem asChild>
+                  <NavLink to="/subscription">
+                    <IconCreditCard className="mr-2 h-4 w-4"/>
+                    Plano
+                  </NavLink>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem asChild>
                 <NavLink to="/user/settings">
                   <IconSettings className="mr-2 h-4 w-4" />
@@ -102,7 +108,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={logout}>
               <IconLogout className="mr-2 h-4 w-4" />
               Sair
             </DropdownMenuItem>

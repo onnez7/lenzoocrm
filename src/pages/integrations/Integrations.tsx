@@ -315,7 +315,7 @@ export default function Integrations() {
                     id="webhookUrl"
                     value={config.webhookUrl || ''}
                     onChange={(e) => updateConfig('webhookUrl', e.target.value)}
-                    placeholder="https://sua-aplicacao.com/webhook/zapi"
+                    placeholder="https://sua-aplicacao.comhook/zapi"
                   />
                 </div>
               </>
@@ -392,7 +392,7 @@ export default function Integrations() {
                     id="webhookUrl"
                     value={config.webhookUrl || ''}
                     onChange={(e) => updateConfig('webhookUrl', e.target.value)}
-                    placeholder="https://sua-aplicacao.com/webhook/mercadopago"
+                    placeholder="https://sua-aplicacao.comhook/mercadopago"
                   />
                 </div>
               </>

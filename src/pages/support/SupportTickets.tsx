@@ -1,149 +1,76 @@
-
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, MessageCircle, Clock, CheckCircle, AlertCircle, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-interface SupportTicket {
-  id: string;
-  title: string;
-  description: string;
-  status: 'open' | 'in_progress' | 'resolved' | 'closed';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  category: 'technical' | 'billing' | 'feature' | 'bug' | 'other';
-  createdAt: Date;
-  updatedAt: Date;
-  responses: TicketResponse[];
-}
-
-interface TicketResponse {
-  id: string;
-  message: string;
-  isFromSupport: boolean;
-  createdAt: Date;
-  author: string;
-}
+import { useAuth } from "@/contexts/AuthContext";
+import { supportService, SupportTicket, TicketMessage } from "@/services/supportService";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function SupportTickets() {
+  const { token } = useAuth();
   const { toast } = useToast();
-  const [tickets, setTickets] = useState<SupportTicket[]>([
-    {
-      id: '1',
-      title: 'Problema na sincronização de estoque',
-      description: 'O estoque não está sendo atualizado corretamente após as vendas.',
-      status: 'in_progress',
-      priority: 'high',
-      category: 'technical',
-      createdAt: new Date('2024-06-20'),
-      updatedAt: new Date('2024-06-21'),
-      responses: [
-        {
-          id: '1',
-          message: 'Recebemos seu ticket e nossa equipe técnica está investigando. Retornaremos em breve.',
-          isFromSupport: true,
-          createdAt: new Date('2024-06-20'),
-          author: 'Suporte Técnico'
-        }
-      ]
-    }
-  ]);
-
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [newTicket, setNewTicket] = useState({
-    title: '',
-    description: '',
-    priority: 'medium' as const,
-    category: 'technical' as const
-  });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [newTicket, setNewTicket] = useState({ title: "", description: "", priority: "medium", category: "technical" });
+  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [messages, setMessages] = useState<TicketMessage[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [loadingMessages, setLoadingMessages] = useState(false);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'open': return 'bg-red-100 text-red-800';
-      case 'in_progress': return 'bg-yellow-100 text-yellow-800';
-      case 'resolved': return 'bg-green-100 text-green-800';
-      case 'closed': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  useEffect(() => {
+    if (!token) return;
+    supportService.getMyTickets(token).then(setTickets);
+  }, [token]);
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-100 text-red-800';
-      case 'high': return 'bg-orange-100 text-orange-800';
-      case 'medium': return 'bg-blue-100 text-blue-800';
-      case 'low': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'open': return <AlertCircle className="h-4 w-4" />;
-      case 'in_progress': return <Clock className="h-4 w-4" />;
-      case 'resolved': return <CheckCircle className="h-4 w-4" />;
-      case 'closed': return <CheckCircle className="h-4 w-4" />;
-      default: return <MessageCircle className="h-4 w-4" />;
-    }
-  };
-
-  const handleCreateTicket = () => {
+  const handleCreateTicket = async () => {
     if (!newTicket.title || !newTicket.description) {
-      toast({
-        title: "Erro",
-        description: "Título e descrição são obrigatórios",
-        variant: "destructive"
-      });
+      toast({ title: "Erro", description: "Título e descrição são obrigatórios", variant: "destructive" });
       return;
     }
-
-    const ticket: SupportTicket = {
-      id: Date.now().toString(),
-      ...newTicket,
-      status: 'open',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      responses: []
-    };
-
-    setTickets([ticket, ...tickets]);
-    setNewTicket({
-      title: '',
-      description: '',
-      priority: 'medium',
-      category: 'technical'
-    });
-    setIsDialogOpen(false);
-
-    toast({
-      title: "Ticket criado",
-      description: "Seu ticket foi criado com sucesso. Nossa equipe entrará em contato em breve.",
-    });
+    try {
+      const ticket = await supportService.createTicket(newTicket, token!);
+      setTickets([ticket, ...tickets]);
+      setNewTicket({ title: "", description: "", priority: "medium", category: "technical" });
+      setIsDialogOpen(false);
+      toast({ title: "Ticket criado", description: "Seu ticket foi criado com sucesso." });
+    } catch {
+      toast({ title: "Erro", description: "Erro ao criar ticket", variant: "destructive" });
+    }
   };
 
-  const filteredTickets = tickets.filter(ticket =>
-    ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
+  const openTicket = async (ticket: SupportTicket) => {
+    setSelectedTicket(ticket);
+    setLoadingMessages(true);
+    try {
+      const msgs = await supportService.getTicketMessages(ticket.id, token!);
+      setMessages(msgs);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!selectedTicket || !newMessage.trim()) return;
+    try {
+      await supportService.addTicketMessage(selectedTicket.id, newMessage, token!);
+      const msgs = await supportService.getTicketMessages(selectedTicket.id, token!);
+      setMessages(msgs);
+      setNewMessage("");
+    } catch {
+      toast({ title: "Erro", description: "Erro ao enviar mensagem", variant: "destructive" });
+    }
+  };
+
+  const filteredTickets = tickets.filter(
+    (ticket) =>
+      ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -173,16 +100,16 @@ export default function SupportTickets() {
                 <Input
                   id="title"
                   value={newTicket.title}
-                  onChange={(e) => setNewTicket({...newTicket, title: e.target.value})}
+                  onChange={(e) => setNewTicket({ ...newTicket, title: e.target.value })}
                   placeholder="Descreva brevemente o problema"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="priority">Prioridade</Label>
-                  <Select 
-                    value={newTicket.priority} 
-                    onValueChange={(value: any) => setNewTicket({...newTicket, priority: value})}
+                  <Select
+                    value={newTicket.priority}
+                    onValueChange={(value) => setNewTicket({ ...newTicket, priority: value })}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -197,9 +124,9 @@ export default function SupportTickets() {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="category">Categoria</Label>
-                  <Select 
-                    value={newTicket.category} 
-                    onValueChange={(value: any) => setNewTicket({...newTicket, category: value})}
+                  <Select
+                    value={newTicket.category}
+                    onValueChange={(value) => setNewTicket({ ...newTicket, category: value })}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -219,7 +146,7 @@ export default function SupportTickets() {
                 <Textarea
                   id="description"
                   value={newTicket.description}
-                  onChange={(e) => setNewTicket({...newTicket, description: e.target.value})}
+                  onChange={(e) => setNewTicket({ ...newTicket, description: e.target.value })}
                   placeholder="Descreva detalhadamente o problema ou solicitação"
                   rows={4}
                 />
@@ -228,9 +155,7 @@ export default function SupportTickets() {
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Cancelar
                 </Button>
-                <Button onClick={handleCreateTicket}>
-                  Criar Ticket
-                </Button>
+                <Button onClick={handleCreateTicket}>Criar Ticket</Button>
               </div>
             </div>
           </DialogContent>
@@ -255,69 +180,73 @@ export default function SupportTickets() {
             <CardContent className="text-center py-8">
               <MessageCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
               <p className="text-gray-500">Nenhum ticket encontrado</p>
-              <p className="text-sm text-gray-400">Clique em "Novo Ticket" para criar sua primeira solicitação</p>
+              <p className="text-sm text-gray-400">Clique em \"Novo Ticket\" para criar sua primeira solicitação</p>
             </CardContent>
           </Card>
         ) : (
           filteredTickets.map((ticket) => (
-            <Card key={ticket.id} className="hover:shadow-md transition-shadow">
+            <Card key={ticket.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => openTicket(ticket)}>
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      {getStatusIcon(ticket.status)}
                       <CardTitle className="text-lg">{ticket.title}</CardTitle>
-                      <Badge className={getStatusColor(ticket.status)}>
-                        {ticket.status === 'open' && 'Aberto'}
-                        {ticket.status === 'in_progress' && 'Em Andamento'}
-                        {ticket.status === 'resolved' && 'Resolvido'}
-                        {ticket.status === 'closed' && 'Fechado'}
-                      </Badge>
-                      <Badge className={getPriorityColor(ticket.priority)}>
-                        {ticket.priority === 'low' && 'Baixa'}
-                        {ticket.priority === 'medium' && 'Média'}
-                        {ticket.priority === 'high' && 'Alta'}
-                        {ticket.priority === 'urgent' && 'Urgente'}
-                      </Badge>
+                      <span className="text-xs text-gray-500">{ticket.status}</span>
+                      <span className="text-xs text-gray-500">{ticket.priority}</span>
+                      <span className="text-xs text-gray-500">{ticket.category}</span>
                     </div>
                     <CardDescription>{ticket.description}</CardDescription>
                     <div className="flex items-center gap-4 text-xs text-gray-500 mt-2">
-                      <span>Criado em {ticket.createdAt.toLocaleDateString('pt-BR')}</span>
-                      <span>•</span>
-                      <span>{ticket.responses.length} respostas</span>
+                      <span>Criado em {new Date(ticket.created_at).toLocaleDateString("pt-BR")}</span>
                     </div>
                   </div>
                 </div>
               </CardHeader>
-              
-              {ticket.responses.length > 0 && (
-                <CardContent>
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium">Última Resposta:</h4>
-                    {ticket.responses.slice(-1).map((response) => (
-                      <div key={response.id} className={`text-sm p-3 rounded ${
-                        response.isFromSupport 
-                          ? 'bg-blue-50 border-l-4 border-blue-400' 
-                          : 'bg-gray-50 border-l-4 border-gray-400'
-                      }`}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-medium text-xs">
-                            {response.isFromSupport ? '🛠️ ' : '👤 '}{response.author}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {response.createdAt.toLocaleDateString('pt-BR')}
-                          </span>
-                        </div>
-                        <p>{response.message}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              )}
             </Card>
           ))
         )}
       </div>
+
+      {/* Modal de mensagens do ticket */}
+      {selectedTicket && (
+        <Dialog open={!!selectedTicket} onOpenChange={() => setSelectedTicket(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Ticket: {selectedTicket.title}</DialogTitle>
+              <DialogDescription>
+                Status: {selectedTicket.status} | Prioridade: {selectedTicket.priority} | Categoria: {selectedTicket.category}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {loadingMessages ? (
+                <p>Carregando mensagens...</p>
+              ) : (
+                messages.map((msg) => (
+                  <div key={msg.id} className="border-b pb-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold">{msg.author_name}</span>
+                      <span className="text-xs text-gray-500">{msg.author_role}</span>
+                      <span className="text-xs text-gray-400">{new Date(msg.created_at).toLocaleString("pt-BR")}</span>
+                    </div>
+                    <p>{msg.message}</p>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="flex gap-2 mt-2">
+              <Textarea
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Digite sua mensagem..."
+                rows={2}
+              />
+              <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
+                Enviar
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

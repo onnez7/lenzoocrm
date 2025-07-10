@@ -1,13 +1,13 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, ChevronLeft, ChevronRight, Plus, Clock, User } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Plus, Clock, User, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import appointmentService, { Appointment } from "@/services/appointmentService";
 
 interface CalendarEvent {
-  id: string;
+  id: number;
   title: string;
   client: string;
   time: string;
@@ -15,41 +15,64 @@ interface CalendarEvent {
   employee: string;
 }
 
-const mockEvents: Record<string, CalendarEvent[]> = {
-  "2024-01-15": [
-    {
-      id: "1",
-      title: "Consulta Oftalmológica",
-      client: "Maria Silva",
-      time: "09:00",
-      status: "confirmado",
-      employee: "Dr. João Santos"
-    },
-    {
-      id: "2",
-      title: "Exame de Vista",
-      client: "Carlos Santos",
-      time: "10:30",
-      status: "agendado",
-      employee: "Dra. Ana Costa"
-    }
-  ],
-  "2024-01-16": [
-    {
-      id: "3",
-      title: "Adaptação de Lentes",
-      client: "Luciana Oliveira",
-      time: "14:00",
-      status: "em_andamento",
-      employee: "Carlos Técnico"
-    }
-  ]
-};
-
 const AppointmentsCalendar = () => {
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Carregar agendamentos
+  useEffect(() => {
+    const loadAppointments = async () => {
+      try {
+        setIsLoading(true);
+        console.log('Carregando agendamentos para o calendário...');
+        const data = await appointmentService.getAppointments();
+        console.log('Agendamentos carregados:', data);
+        setAppointments(data);
+      } catch (error) {
+        console.error('Erro ao carregar agendamentos:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadAppointments();
+  }, []);
+
+  // Função para formatar data para chave do calendário (YYYY-MM-DD)
+  const formatDateKey = (dateString: string): string => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toISOString().split('T')[0];
+  };
+
+  // Converter appointments para eventos do calendário
+  const getCalendarEvents = (): Record<string, CalendarEvent[]> => {
+    const events: Record<string, CalendarEvent[]> = {};
+    
+    appointments.forEach(appointment => {
+      const dateKey = formatDateKey(appointment.appointment_date);
+      if (!dateKey) return; // Pular se não houver data válida
+      
+      if (!events[dateKey]) {
+        events[dateKey] = [];
+      }
+      
+      events[dateKey].push({
+        id: appointment.id,
+        title: appointment.service,
+        client: appointment.client_name || 'Cliente não informado',
+        time: appointmentService.formatTime(appointment.appointment_time),
+        status: appointment.status,
+        employee: appointment.employee_name || 'Profissional não informado'
+      });
+    });
+    
+    console.log('Eventos do calendário:', events);
+    return events;
+  };
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -108,19 +131,22 @@ const AppointmentsCalendar = () => {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "confirmado": return "bg-green-100 text-green-800";
-      case "agendado": return "bg-blue-100 text-blue-800";
-      case "em_andamento": return "bg-yellow-100 text-yellow-800";
-      case "concluido": return "bg-gray-100 text-gray-800";
-      case "cancelado": return "bg-red-100 text-red-800";
-      default: return "bg-gray-100 text-gray-800";
-    }
+    return appointmentService.getStatusColor(status);
   };
 
   const days = getDaysInMonth(currentDate);
   const monthYear = currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-  const selectedEvents = selectedDate ? mockEvents[selectedDate] || [] : [];
+  const calendarEvents = getCalendarEvents();
+  const selectedEvents = selectedDate ? calendarEvents[selectedDate] || [] : [];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Carregando calendário...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -167,7 +193,7 @@ const AppointmentsCalendar = () => {
 
             <div className="grid grid-cols-7 gap-1">
               {days.map((day, index) => {
-                const events = mockEvents[day.dateString] || [];
+                const events = calendarEvents[day.dateString] || [];
                 const isSelected = selectedDate === day.dateString;
                 const hasEvents = events.length > 0;
 
@@ -240,7 +266,7 @@ const AppointmentsCalendar = () => {
                     <div className="flex items-start justify-between mb-2">
                       <h4 className="font-medium">{event.title}</h4>
                       <Badge variant="secondary" className={getStatusColor(event.status)}>
-                        {event.status}
+                        {appointmentService.getStatusLabel(event.status)}
                       </Badge>
                     </div>
                     <div className="space-y-1 text-sm text-muted-foreground">
@@ -255,6 +281,22 @@ const AppointmentsCalendar = () => {
                       <div>
                         Profissional: {event.employee}
                       </div>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => navigate(`/appointments/${event.id}`)}
+                      >
+                        Ver Detalhes
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => navigate(`/appointments/${event.id}/edit`)}
+                      >
+                        Editar
+                      </Button>
                     </div>
                   </div>
                 ))}

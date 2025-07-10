@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { 
   Dialog,
@@ -12,15 +11,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Minus, DollarSign } from "lucide-react";
+import { Minus, DollarSign, Loader2 } from "lucide-react";
 
 interface SangriaDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (amount: number, description: string) => void;
+  isLoading?: boolean;
 }
 
-export const SangriaDialog = ({ isOpen, onClose, onConfirm }: SangriaDialogProps) => {
+export const SangriaDialog = ({ isOpen, onClose, onConfirm, isLoading = false }: SangriaDialogProps) => {
   const { toast } = useToast();
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -90,6 +90,7 @@ export const SangriaDialog = ({ isOpen, onClose, onConfirm }: SangriaDialogProps
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className="pl-8"
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -102,6 +103,7 @@ export const SangriaDialog = ({ isOpen, onClose, onConfirm }: SangriaDialogProps
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
+              disabled={isLoading}
             />
           </div>
 
@@ -113,14 +115,19 @@ export const SangriaDialog = ({ isOpen, onClose, onConfirm }: SangriaDialogProps
         </div>
 
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} disabled={isLoading}>
             Cancelar
           </Button>
           <Button 
             onClick={handleConfirm}
             className="bg-red-600 hover:bg-red-700"
+            disabled={isLoading}
           >
-            <Minus className="h-4 w-4 mr-2" />
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Minus className="h-4 w-4 mr-2" />
+            )}
             Confirmar Sangria
           </Button>
         </div>

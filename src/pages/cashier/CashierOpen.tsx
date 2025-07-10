@@ -1,13 +1,21 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DollarSign, Clock, User, Calendar } from "lucide-react";
+import { DollarSign, Clock, User, Calendar, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { cashierService } from "@/services/cashierService";
+import employeeService from "@/services/employeeService";
+
+interface Employee {
+  id: number;
+  name: string;
+  email: string;
+  position: string;
+}
 
 const CashierOpen = () => {
   const navigate = useNavigate();
@@ -18,15 +26,33 @@ const CashierOpen = () => {
     initialAmount: "",
     notes: "",
   });
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingEmployees, setIsLoadingEmployees] = useState(true);
 
-  // Mock data
-  const employees = [
-    { id: "1", name: "Ana Oliveira" },
-    { id: "2", name: "Carlos Pereira" },
-    { id: "3", name: "Lucia Mendes" },
-  ];
+  // Carregar funcionários
+  useEffect(() => {
+    loadEmployees();
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const loadEmployees = async () => {
+    try {
+      setIsLoadingEmployees(true);
+      const response = await employeeService.getFranchiseEmployees(1, 100);
+      setEmployees(response.employees);
+    } catch (error) {
+      console.error('Erro ao carregar funcionários:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar lista de funcionários.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingEmployees(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.employeeId || !formData.initialAmount) {
@@ -38,12 +64,31 @@ const CashierOpen = () => {
       return;
     }
     
-    toast({
-      title: "Caixa Aberto!",
-      description: "O caixa foi aberto com sucesso.",
-    });
+    try {
+      setIsLoading(true);
+      
+      await cashierService.openCashier({
+        employee_id: parseInt(formData.employeeId),
+        initial_amount: parseFloat(formData.initialAmount),
+        notes: formData.notes || undefined
+      });
+      
+      toast({
+        title: "Caixa Aberto!",
+        description: "O caixa foi aberto com sucesso.",
+      });
 
-    navigate("/cashier");
+      navigate("/cashier");
+    } catch (error: any) {
+      console.error('Erro ao abrir caixa:', error);
+      toast({
+        title: "Erro",
+        description: error.response?.data?.message || "Erro ao abrir o caixa.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -113,24 +158,34 @@ const CashierOpen = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="employee">Funcionário Responsável *</Label>
-                <Select 
-                  value={formData.employeeId} 
-                  onValueChange={(value) => handleInputChange("employeeId", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o funcionário" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background border shadow-lg">
-                    {employees.map((employee) => (
-                      <SelectItem key={employee.id} value={employee.id}>
-                        <div className="flex items-center">
-                          <User className="mr-2 h-4 w-4" />
-                          {employee.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {isLoadingEmployees ? (
+                  <div className="flex items-center space-x-2 p-2 border rounded-md">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm text-muted-foreground">Carregando funcionários...</span>
+                  </div>
+                ) : (
+                  <Select 
+                    value={formData.employeeId} 
+                    onValueChange={(value) => handleInputChange("employeeId", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o funcionário" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border shadow-lg">
+                      {employees.map((employee) => (
+                        <SelectItem key={employee.id} value={employee.id.toString()}>
+                          <div className="flex items-center">
+                            <User className="mr-2 h-4 w-4" />
+                            <div>
+                              <div>{employee.name}</div>
+                              <div className="text-xs text-muted-foreground">{employee.position}</div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="initialAmount">Valor Inicial (R$) *</Label>
@@ -162,11 +217,20 @@ const CashierOpen = () => {
                 variant="outline" 
                 type="button" 
                 onClick={() => navigate("/cashier")}
+                disabled={isLoading}
               >
                 Cancelar
               </Button>
-              <Button type="submit" className="bg-green-600 hover:bg-green-700">
-                <DollarSign className="h-4 w-4 mr-2" />
+              <Button 
+                type="submit" 
+                className="bg-green-600 hover:bg-green-700"
+                disabled={isLoading || isLoadingEmployees}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <DollarSign className="h-4 w-4 mr-2" />
+                )}
                 Abrir Caixa
               </Button>
             </div>

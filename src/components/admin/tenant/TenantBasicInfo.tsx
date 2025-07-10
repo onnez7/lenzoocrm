@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Mail, Phone } from "lucide-react";
@@ -75,6 +74,17 @@ export function TenantBasicInfo({ tenant }: TenantBasicInfoProps) {
               </div>
               <div>
                 <span className="text-gray-600">Máx. lojas:</span> {tenant.maxStores === -1 ? 'Ilimitado' : tenant.maxStores}
+              </div>
+            </div>
+          </div>
+          <div>
+            <h4 className="font-medium text-gray-900 mb-2">Localização</h4>
+            <div className="space-y-2 text-sm">
+              <div>
+                <span className="text-gray-600">Cidade:</span> {tenant.city || 'Não informado'}
+              </div>
+              <div>
+                <span className="text-gray-600">Estado:</span> {tenant.state || 'Não informado'}
               </div>
             </div>
           </div>

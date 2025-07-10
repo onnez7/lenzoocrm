@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,69 +26,157 @@ import {
   Calendar,
   Users,
   TrendingUp,
-  XCircle
+  XCircle,
+  Loader2,
+  Trash2
 } from "lucide-react";
-import { mockTenants, mockPlans } from "@/lib/saas-schema";
-
-const mockSubscriptions = [
-  {
-    id: 'sub_001',
-    tenantId: '1',
-    tenantName: 'Ótica Visão Clara',
-    plan: 'premium',
-    status: 'active',
-    currentPeriodStart: '2024-11-15',
-    currentPeriodEnd: '2024-12-15',
-    amount: 199.90,
-    nextBilling: '2024-12-15',
-    daysTrial: 0,
-    autoRenew: true
-  },
-  {
-    id: 'sub_002',
-    tenantId: '2',
-    tenantName: 'Ótica Moderna',
-    plan: 'basic',
-    status: 'trialing',
-    currentPeriodStart: '2024-12-01',
-    currentPeriodEnd: '2024-12-15',
-    amount: 99.90,
-    nextBilling: '2024-12-15',
-    daysTrial: 5,
-    autoRenew: true
-  },
-  {
-    id: 'sub_003',
-    tenantId: '3',
-    tenantName: 'Ótica Central',
-    plan: 'premium',
-    status: 'past_due',
-    currentPeriodStart: '2024-11-10',
-    currentPeriodEnd: '2024-12-10',
-    amount: 199.90,
-    nextBilling: '2024-12-10',
-    daysTrial: 0,
-    autoRenew: true
-  },
-  {
-    id: 'sub_004',
-    tenantId: '4',
-    tenantName: 'Ótica Vista Bela',
-    plan: 'enterprise',
-    status: 'canceled',
-    currentPeriodStart: '2024-10-15',
-    currentPeriodEnd: '2024-11-15',
-    amount: 399.90,
-    nextBilling: null,
-    daysTrial: 0,
-    autoRenew: false
-  }
-];
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { subscriptionService, Subscription, SubscriptionPlan, SubscriptionMetrics } from "@/services/subscriptionService";
+import CreateSubscriptionModal from "@/components/admin/subscription/CreateSubscriptionModal";
+import EditSubscriptionModal from "@/components/admin/subscription/EditSubscriptionModal";
+import PlanManagementModal from "@/components/admin/subscription/PlanManagementModal";
 
 export default function AdminSubscriptions() {
+  const { token, user } = useAuth();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [planFilter, setPlanFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [metrics, setMetrics] = useState<SubscriptionMetrics | null>(null);
+  const [franchises, setFranchises] = useState<any[]>([]);
+
+  // Verificar se o usuário é SUPER_ADMIN
+  useEffect(() => {
+    if (user && user.role !== 'SUPER_ADMIN') {
+      toast({ 
+        title: 'Acesso Negado', 
+        description: 'Apenas administradores matriz podem acessar esta área.', 
+        variant: 'destructive' 
+      });
+      return;
+    }
+  }, [user, toast]);
+
+  // Se não for SUPER_ADMIN, não renderiza nada
+  if (!user || user.role !== 'SUPER_ADMIN') {
+    return null;
+  }
+
+  // Carregar dados
+  useEffect(() => {
+    const loadData = async () => {
+      if (!token) return;
+      
+      try {
+        setLoading(true);
+        const [subscriptionsData, plansData, metricsData] = await Promise.all([
+          subscriptionService.getAllSubscriptions(token),
+          subscriptionService.getAllPlans(token),
+          subscriptionService.getMetrics(token)
+        ]);
+        
+        setSubscriptions(subscriptionsData);
+        setPlans(plansData);
+        setMetrics(metricsData);
+      } catch (error) {
+        toast({ 
+          title: 'Erro', 
+          description: 'Erro ao carregar dados das assinaturas', 
+          variant: 'destructive' 
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [token, toast]);
+
+  // Carregar franquias para o modal de criação
+  useEffect(() => {
+    const loadFranchises = async () => {
+      if (!token) return;
+      
+      try {
+        const response = await fetch('/api/franchises', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const franchisesData = await response.json();
+          setFranchises(franchisesData);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar franquias:', error);
+      }
+    };
+
+    loadFranchises();
+  }, [token]);
+
+  const handleSuccess = () => {
+    // Recarregar dados após operações
+    const loadData = async () => {
+      if (!token) return;
+      
+      try {
+        const [subscriptionsData, plansData, metricsData] = await Promise.all([
+          subscriptionService.getAllSubscriptions(token),
+          subscriptionService.getAllPlans(token),
+          subscriptionService.getMetrics(token)
+        ]);
+        
+        setSubscriptions(subscriptionsData);
+        setPlans(plansData);
+        setMetrics(metricsData);
+      } catch (error) {
+        console.error('Erro ao recarregar dados:', error);
+      }
+    };
+
+    loadData();
+  };
+
+  const handleCancelSubscription = async (subscription: Subscription) => {
+    if (!token) return;
+    
+    try {
+      await subscriptionService.cancelSubscription(subscription.id, true, token);
+      toast({ 
+        title: 'Sucesso', 
+        description: 'Assinatura cancelada com sucesso!' 
+      });
+      handleSuccess();
+    } catch (error) {
+      toast({ 
+        title: 'Erro', 
+        description: 'Erro ao cancelar assinatura', 
+        variant: 'destructive' 
+      });
+    }
+  };
+
+  const handleReactivateSubscription = async (subscription: Subscription) => {
+    if (!token) return;
+    
+    try {
+      await subscriptionService.reactivateSubscription(subscription.id, token);
+      toast({ 
+        title: 'Sucesso', 
+        description: 'Assinatura reativada com sucesso!' 
+      });
+      handleSuccess();
+    } catch (error) {
+      toast({ 
+        title: 'Erro', 
+        description: 'Erro ao reativar assinatura', 
+        variant: 'destructive' 
+      });
+    }
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -116,6 +203,8 @@ export default function AdminSubscriptions() {
         return <Badge className="bg-yellow-100 text-yellow-800">Vencida</Badge>;
       case 'canceled':
         return <Badge className="bg-red-100 text-red-800">Cancelada</Badge>;
+      case 'unpaid':
+        return <Badge className="bg-red-100 text-red-800">Não Paga</Badge>;
       default:
         return <Badge variant="outline">Desconhecido</Badge>;
     }
@@ -123,43 +212,44 @@ export default function AdminSubscriptions() {
 
   const getPlanBadge = (plan: string) => {
     switch (plan) {
-      case 'basic':
+      case 'Básico':
         return <Badge variant="outline" className="border-blue-200 text-blue-700">Básico</Badge>;
-      case 'premium':
+      case 'Premium':
         return <Badge variant="outline" className="border-green-200 text-green-700">Premium</Badge>;
-      case 'enterprise':
+      case 'Enterprise':
         return <Badge variant="outline" className="border-purple-200 text-purple-700">Enterprise</Badge>;
       default:
-        return <Badge variant="outline">Desconhecido</Badge>;
+        return <Badge variant="outline">{plan}</Badge>;
     }
   };
 
-  const filteredSubscriptions = mockSubscriptions.filter(subscription => {
-    const matchesSearch = subscription.tenantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         subscription.id.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredSubscriptions = subscriptions.filter(subscription => {
+    const matchesSearch = subscription.franchise_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         subscription.id.toString().includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || subscription.status === statusFilter;
-    const matchesPlan = planFilter === 'all' || subscription.plan === planFilter;
+    const matchesPlan = planFilter === 'all' || subscription.plan_name === planFilter;
     
     return matchesSearch && matchesStatus && matchesPlan;
   });
 
-  // Métricas
-  const totalSubscriptions = mockSubscriptions.length;
-  const activeSubscriptions = mockSubscriptions.filter(s => s.status === 'active').length;
-  const trialSubscriptions = mockSubscriptions.filter(s => s.status === 'trialing').length;
-  const churnedSubscriptions = mockSubscriptions.filter(s => s.status === 'canceled').length;
-  const mrr = mockSubscriptions
-    .filter(s => s.status === 'active')
-    .reduce((sum, s) => sum + s.amount, 0);
-
-  const getDaysUntilRenewal = (nextBilling: string | null) => {
-    if (!nextBilling) return null;
+  const getDaysUntilRenewal = (endDate: string) => {
     const today = new Date();
-    const billing = new Date(nextBilling);
-    const diffTime = billing.getTime() - today.getTime();
+    const end = new Date(endDate);
+    const diffTime = end.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>Carregando assinaturas...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -170,69 +260,65 @@ export default function AdminSubscriptions() {
           <p className="text-gray-600 mt-1">Controle completo de planos e cobranças dos franqueados</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Filter className="mr-2 h-4 w-4" />
-            Filtros Avançados
-          </Button>
-          <Button size="sm">
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Assinatura
-          </Button>
+          <PlanManagementModal onSuccess={handleSuccess} />
+          <CreateSubscriptionModal franchises={franchises} onSuccess={handleSuccess} />
         </div>
       </div>
 
       {/* Métricas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Total</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalSubscriptions}</div>
-            <p className="text-xs text-gray-500">Assinaturas</p>
-          </CardContent>
-        </Card>
+      {metrics && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Total</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{metrics.total_subscriptions}</div>
+              <p className="text-xs text-gray-500">Assinaturas</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Ativas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{activeSubscriptions}</div>
-            <p className="text-xs text-gray-500">Pagando regularmente</p>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Ativas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{metrics.active_subscriptions}</div>
+              <p className="text-xs text-gray-500">Pagando regularmente</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Trial</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{trialSubscriptions}</div>
-            <p className="text-xs text-gray-500">Período experimental</p>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Trial</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">{metrics.trial_subscriptions}</div>
+              <p className="text-xs text-gray-500">Período experimental</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Churn</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{churnedSubscriptions}</div>
-            <p className="text-xs text-gray-500">Canceladas</p>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Churn</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">{metrics.canceled_subscriptions}</div>
+              <p className="text-xs text-gray-500">Canceladas</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">MRR</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">R$ {mrr.toFixed(2)}</div>
-            <p className="text-xs text-gray-500">Receita mensal recorrente</p>
-          </CardContent>
-        </Card>
-      </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">MRR</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-600">R$ {metrics.mrr.toFixed(2)}</div>
+              <p className="text-xs text-gray-500">Receita mensal recorrente</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <Tabs defaultValue="list" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
@@ -271,6 +357,7 @@ export default function AdminSubscriptions() {
                     <SelectItem value="trialing">Trial</SelectItem>
                     <SelectItem value="past_due">Vencida</SelectItem>
                     <SelectItem value="canceled">Cancelada</SelectItem>
+                    <SelectItem value="unpaid">Não Paga</SelectItem>
                   </SelectContent>
                 </Select>
                 
@@ -280,20 +367,20 @@ export default function AdminSubscriptions() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos Planos</SelectItem>
-                    <SelectItem value="basic">Básico</SelectItem>
-                    <SelectItem value="premium">Premium</SelectItem>
-                    <SelectItem value="enterprise">Enterprise</SelectItem>
+                    {plans.map(plan => (
+                      <SelectItem key={plan.id} value={plan.name}>{plan.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
               {/* Lista de Assinaturas */}
               <div className="space-y-3">
-                {filteredSubscriptions.map((subscription, index) => {
-                  const daysUntilRenewal = getDaysUntilRenewal(subscription.nextBilling);
+                {filteredSubscriptions.map((subscription) => {
+                  const daysUntilRenewal = getDaysUntilRenewal(subscription.current_period_end);
                   
                   return (
-                    <div key={index} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div key={subscription.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
                           <div className="flex items-center space-x-2">
@@ -301,12 +388,12 @@ export default function AdminSubscriptions() {
                             <CreditCard className="h-4 w-4 text-gray-400" />
                           </div>
                           <div>
-                            <h4 className="font-medium">{subscription.tenantName}</h4>
+                            <h4 className="font-medium">{subscription.franchise_name}</h4>
                             <p className="text-sm text-gray-500">
                               ID: {subscription.id}
-                              {subscription.daysTrial > 0 && (
+                              {subscription.days_trial_remaining > 0 && (
                                 <span className="ml-2 text-blue-600">
-                                  • {subscription.daysTrial} dias de trial restantes
+                                  • {subscription.days_trial_remaining} dias de trial restantes
                                 </span>
                               )}
                             </p>
@@ -318,49 +405,59 @@ export default function AdminSubscriptions() {
                             <div className="text-lg font-bold">
                               R$ {subscription.amount.toFixed(2)}/mês
                             </div>
-                            {getPlanBadge(subscription.plan)}
+                            {getPlanBadge(subscription.plan_name)}
                           </div>
                           
                           <div className="text-right">
                             {getStatusBadge(subscription.status)}
-                            {daysUntilRenewal !== null && (
-                              <p className="text-xs text-gray-500 mt-1">
-                                {daysUntilRenewal > 0 
-                                  ? `${daysUntilRenewal} dias até renovar`
-                                  : daysUntilRenewal === 0 
-                                  ? 'Renova hoje'
-                                  : `${Math.abs(daysUntilRenewal)} dias em atraso`
-                                }
-                              </p>
-                            )}
+                            <p className="text-xs text-gray-500 mt-1">
+                              {daysUntilRenewal > 0 
+                                ? `${daysUntilRenewal} dias até renovar`
+                                : daysUntilRenewal === 0 
+                                ? 'Renova hoje'
+                                : `${Math.abs(daysUntilRenewal)} dias em atraso`
+                              }
+                            </p>
                           </div>
                           
                           <div className="flex items-center space-x-1">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                            <EditSubscriptionModal subscription={subscription} onSuccess={handleSuccess} />
+                            
                             {subscription.status === 'active' ? (
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleCancelSubscription(subscription)}
+                              >
                                 <Pause className="h-4 w-4" />
                               </Button>
-                            ) : subscription.status === 'canceled' ? null : (
-                              <Button variant="ghost" size="sm">
+                            ) : subscription.status === 'canceled' ? (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleReactivateSubscription(subscription)}
+                              >
                                 <Play className="h-4 w-4" />
                               </Button>
-                            )}
+                            ) : subscription.status === 'past_due' ? (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleReactivateSubscription(subscription)}
+                              >
+                                <Play className="h-4 w-4" />
+                              </Button>
+                            ) : null}
                           </div>
                         </div>
                       </div>
                       
                       <div className="mt-3 flex items-center justify-between text-xs text-gray-500 border-t pt-3">
                         <span>
-                          Período: {new Date(subscription.currentPeriodStart).toLocaleDateString('pt-BR')} - {new Date(subscription.currentPeriodEnd).toLocaleDateString('pt-BR')}
+                          Período: {new Date(subscription.current_period_start).toLocaleDateString('pt-BR')} - {new Date(subscription.current_period_end).toLocaleDateString('pt-BR')}
                         </span>
                         <span>
-                          Auto-renovação: {subscription.autoRenew ? 'Ativa' : 'Inativa'}
+                          Auto-renovação: {subscription.cancel_at_period_end ? 'Inativa' : 'Ativa'}
                         </span>
                       </div>
                     </div>
@@ -379,13 +476,13 @@ export default function AdminSubscriptions() {
 
         <TabsContent value="plans" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {mockPlans.map((plan, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
+            {plans.map((plan) => (
+              <Card key={plan.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-xl">{plan.name}</CardTitle>
-                    <Badge className={plan.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
-                      {plan.isActive ? 'Ativo' : 'Inativo'}
+                    <Badge className={plan.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+                      {plan.is_active ? 'Ativo' : 'Inativo'}
                     </Badge>
                   </div>
                   <CardDescription>{plan.description}</CardDescription>
@@ -393,46 +490,45 @@ export default function AdminSubscriptions() {
                 <CardContent className="space-y-4">
                   <div className="text-center">
                     <div className="text-3xl font-bold text-green-600">
-                      R$ {plan.price.toFixed(2)}
+                      {plan.is_free ? 'Grátis' : `R$ ${plan.price.toFixed(2)}`}
                     </div>
-                    <div className="text-sm text-gray-500">por mês</div>
+                    <div className="text-sm text-gray-500">
+                      por {plan.billing_cycle === 'monthly' ? 'mês' : 'ano'}
+                    </div>
                   </div>
                   
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Máx. Usuários:</span>
-                      <span className="font-medium">{plan.maxUsers === -1 ? 'Ilimitado' : plan.maxUsers}</span>
+                      <span className="font-medium">{plan.max_users === -1 ? 'Ilimitado' : plan.max_users}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Máx. Lojas:</span>
-                      <span className="font-medium">{plan.maxStores === -1 ? 'Ilimitado' : plan.maxStores}</span>
+                      <span className="font-medium">{plan.max_stores === -1 ? 'Ilimitado' : plan.max_stores}</span>
                     </div>
+                    {plan.trial_days > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span>Trial:</span>
+                        <span className="font-medium text-blue-600">{plan.trial_days} dias</span>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="space-y-1">
                     <h5 className="font-medium text-sm">Recursos inclusos:</h5>
                     <ul className="text-xs text-gray-600 space-y-1">
-                      {plan.features.map((feature, idx) => (
+                      {plan.features.slice(0, 3).map((feature, idx) => (
                         <li key={idx} className="flex items-center gap-1">
                           <CheckCircle className="h-3 w-3 text-green-600" />
                           {feature}
                         </li>
                       ))}
+                      {plan.features.length > 3 && (
+                        <li className="text-xs text-gray-500">
+                          +{plan.features.length - 3} mais recursos
+                        </li>
+                      )}
                     </ul>
-                  </div>
-                  
-                  <div className="flex gap-2 pt-4">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      <Edit className="mr-1 h-3 w-3" />
-                      Editar
-                    </Button>
-                    <Button 
-                      variant={plan.isActive ? "destructive" : "default"} 
-                      size="sm" 
-                      className="flex-1"
-                    >
-                      {plan.isActive ? 'Desativar' : 'Ativar'}
-                    </Button>
                   </div>
                 </CardContent>
               </Card>

@@ -236,7 +236,7 @@ export default function AdminSettings() {
                 </div>
                 <div>
                   <Label htmlFor="webhook-endpoint">Endpoint Webhook</Label>
-                  <Input id="webhook-endpoint" placeholder="https://api.lenzoo.com/webhooks/stripe" />
+                  <Input id="webhook-endpoint" placeholder="https://api.lenzoo.comhooks/stripe" />
                 </div>
                 <div>
                   <Label htmlFor="webhook-secret">Webhook Secret</Label>

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { AdminStats } from "@/components/admin/AdminStats";
 import { AdminRevenueChart } from "@/components/admin/AdminRevenueChart";
 import { AdminFranchiseesMap } from "@/components/admin/AdminFranchiseesMap";
@@ -10,8 +11,34 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Bell, TrendingUp, Users, AlertTriangle, Download, Filter, BarChart3 } from "lucide-react";
+import adminService, { AdminStats as AdminStatsType } from "@/services/adminService";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AdminDashboard() {
+  const [stats, setStats] = useState<AdminStatsType | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await adminService.getAdminStats();
+        setStats(data);
+      } catch (error) {
+        console.error('Erro ao buscar estatísticas:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar as estatísticas do dashboard",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, [toast]);
+
   const systemHealth = {
     status: 'healthy',
     uptime: '99.9%',
@@ -20,10 +47,26 @@ export default function AdminDashboard() {
   };
 
   const todayHighlights = [
-    { label: 'Novos Franqueados', value: '3', trend: '+50%' },
-    { label: 'Receita Hoje', value: 'R$ 1.247,90', trend: '+23%' },
-    { label: 'Tickets Resolvidos', value: '12', trend: '+8%' },
-    { label: 'Conversões Trial', value: '2', trend: '+100%' }
+    { 
+      label: 'Franquias Ativas', 
+      value: stats?.activeFranchises?.toString() || '0', 
+      trend: `${stats?.totalFranchises ? ((stats.activeFranchises / stats.totalFranchises) * 100).toFixed(1) : 0}% ativo` 
+    },
+    { 
+      label: 'Receita Mensal', 
+      value: `R$ ${stats?.monthlyRevenue?.toFixed(2) || '0,00'}`, 
+      trend: '+23%' 
+    },
+    { 
+      label: 'Total de Vendas', 
+      value: stats?.totalSales?.toString() || '0', 
+      trend: 'vendas realizadas' 
+    },
+    { 
+      label: 'Contas Pendentes', 
+      value: stats?.pendingReceivables > 0 || stats?.pendingPayables > 0 ? 'Sim' : 'Não', 
+      trend: `R$ ${((stats?.pendingReceivables || 0) + (stats?.pendingPayables || 0)).toFixed(2)}` 
+    }
   ];
 
   return (
@@ -47,7 +90,7 @@ export default function AdminDashboard() {
             <Bell className="mr-2 h-4 w-4" />
             Alertas
             <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs bg-red-500">
-              7
+              {stats ? (stats.pendingReceivables > 0 || stats.pendingPayables > 0 ? '1' : '0') : '0'}
             </Badge>
           </Button>
         </div>

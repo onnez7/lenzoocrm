@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,14 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { clientService } from "@/services/clientService";
 
 const ClientForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const isEditing = Boolean(id);
+  const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -30,18 +31,97 @@ const ClientForm = () => {
     status: "active",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Carregar dados do cliente se estiver editando
+  useEffect(() => {
+    if (isEditing && id) {
+      loadClient();
+    }
+  }, [isEditing, id]);
+
+  const loadClient = async () => {
+    try {
+      setLoading(true);
+      const client = await clientService.getClientById(parseInt(id!));
+      setFormData({
+        name: client.name,
+        email: client.email || "",
+        phone: client.phone || "",
+        cpf: client.cpf || "",
+        birthDate: client.birth_date ? client.birth_date.split('T')[0] : "",
+        address: client.address || "",
+        city: client.city || "",
+        state: client.state || "",
+        zipCode: client.zip_code || "",
+        notes: client.notes || "",
+        status: "active",
+      });
+    } catch (error) {
+      console.error('Erro ao carregar cliente:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os dados do cliente.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Simulate save operation
-    toast({
-      title: isEditing ? "Cliente atualizado!" : "Cliente cadastrado!",
-      description: isEditing 
-        ? "As informações do cliente foram atualizadas com sucesso."
-        : "O novo cliente foi cadastrado com sucesso.",
-    });
+    if (!formData.name.trim()) {
+      toast({
+        title: "Erro",
+        description: "Nome é obrigatório.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    navigate("/clients");
+    try {
+      setLoading(true);
+      
+      const clientData = {
+        name: formData.name.trim(),
+        email: formData.email.trim() || undefined,
+        phone: formData.phone.trim() || undefined,
+        cpf: formData.cpf.trim() || undefined,
+        birthDate: formData.birthDate || undefined,
+        address: formData.address.trim() || undefined,
+        city: formData.city.trim() || undefined,
+        state: formData.state.trim() || undefined,
+        zipCode: formData.zipCode.trim() || undefined,
+        notes: formData.notes.trim() || undefined,
+      };
+
+      if (isEditing) {
+        await clientService.updateClient(parseInt(id!), clientData);
+        toast({
+          title: "Sucesso!",
+          description: "Cliente atualizado com sucesso.",
+        });
+      } else {
+        await clientService.createClient(clientData);
+        toast({
+          title: "Sucesso!",
+          description: "Cliente cadastrado com sucesso.",
+        });
+      }
+
+      navigate("/clients");
+    } catch (error) {
+      console.error('Erro ao salvar cliente:', error);
+      toast({
+        title: "Erro",
+        description: isEditing 
+          ? "Não foi possível atualizar o cliente."
+          : "Não foi possível cadastrar o cliente.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -227,14 +307,23 @@ const ClientForm = () => {
 
         {/* Form Actions */}
         <div className="flex justify-end space-x-4">
-          <Button variant="outline" type="button" asChild>
+          <Button variant="outline" type="button" asChild disabled={loading}>
             <Link to="/clients">
               Cancelar
             </Link>
           </Button>
-          <Button type="submit">
-            <Save className="h-4 w-4 mr-2" />
-            {isEditing ? "Atualizar" : "Cadastrar"}
+          <Button type="submit" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {isEditing ? "Atualizando..." : "Cadastrando..."}
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                {isEditing ? "Atualizar" : "Cadastrar"}
+              </>
+            )}
           </Button>
         </div>
       </form>

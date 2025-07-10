@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,89 +20,81 @@ import {
   Clock,
   User,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  Loader2
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { cashierService } from "@/services/cashierService";
+
+interface CashierSession {
+  id: number;
+  session_code: string;
+  employee_id: number;
+  employee_name: string;
+  open_time: string;
+  close_time: string | null;
+  initial_amount: number;
+  final_amount: number | null;
+  cash_sales: number;
+  card_sales: number;
+  pix_sales: number;
+  total_sales: number;
+  difference: number | null;
+  status: 'open' | 'closed';
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 const CashierHistory = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [cashierSessions, setCashierSessions] = useState<CashierSession[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
-  // Mock data
-  const cashierSessions = [
-    {
-      id: "CS-001",
-      date: "2024-01-15",
-      employeeName: "Ana Oliveira",
-      openTime: "08:00",
-      closeTime: "18:30",
-      initialAmount: 100.00,
-      totalSales: 2380.00,
-      finalAmount: 2480.00,
-      difference: 0.00,
-      status: "closed",
-      notes: "Fechamento normal",
-    },
-    {
-      id: "CS-002", 
-      date: "2024-01-14",
-      employeeName: "Carlos Pereira",
-      openTime: "08:30",
-      closeTime: "18:15",
-      initialAmount: 100.00,
-      totalSales: 1950.00,
-      finalAmount: 2045.00,
-      difference: -5.00,
-      status: "closed",
-      notes: "Diferença de R$ 5,00 - moeda perdida",
-    },
-    {
-      id: "CS-003",
-      date: "2024-01-13",
-      employeeName: "Lucia Mendes",
-      openTime: "08:15",
-      closeTime: "18:45",
-      initialAmount: 100.00,
-      totalSales: 3250.00,
-      finalAmount: 3355.00,
-      difference: 5.00,
-      status: "closed",
-      notes: "Sobra de R$ 5,00 - gorjeta cliente",
-    },
-    {
-      id: "CS-004",
-      date: "2024-01-16",
-      employeeName: "Ana Oliveira",
-      openTime: "08:00",
-      closeTime: null,
-      initialAmount: 100.00,
-      totalSales: 1150.00,
-      finalAmount: 0,
-      difference: 0,
-      status: "open",
-      notes: "Caixa em andamento",
-    },
-  ];
+  // Carregar histórico
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  const loadHistory = async () => {
+    try {
+      setIsLoading(true);
+      const sessions = await cashierService.getHistory();
+      setCashierSessions(sessions);
+    } catch (error) {
+      console.error('Erro ao carregar histórico:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar histórico do caixa.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredSessions = cashierSessions.filter(session =>
-    session.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    session.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    session.date.includes(searchTerm)
+    session.session_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    session.employee_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    new Date(session.open_time).toLocaleDateString('pt-BR').includes(searchTerm)
   );
 
-  const getStatusBadge = (status: string, difference: number) => {
+  const getStatusBadge = (status: string, difference: number | null) => {
     if (status === "open") {
       return <Badge variant="secondary" className="bg-green-100 text-green-800">Aberto</Badge>;
     }
     
     if (difference === 0) {
       return <Badge variant="secondary" className="bg-blue-100 text-blue-800">Conferido</Badge>;
-    } else if (difference > 0) {
+    } else if (difference && difference > 0) {
       return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Com Sobra</Badge>;
     } else {
       return <Badge variant="secondary" className="bg-red-100 text-red-800">Com Falta</Badge>;
     }
   };
 
-  const getStatusIcon = (status: string, difference: number) => {
+  const getStatusIcon = (status: string, difference: number | null) => {
     if (status === "open") {
       return <Clock className="h-4 w-4 text-green-600" />;
     }
@@ -117,9 +108,21 @@ const CashierHistory = () => {
 
   const totalSales = cashierSessions
     .filter(s => s.status === "closed")
-    .reduce((sum, session) => sum + session.totalSales, 0);
+    .reduce((sum, session) => sum + Number(session.total_sales || 0), 0);
 
-  const averageSales = totalSales / cashierSessions.filter(s => s.status === "closed").length;
+  const closedSessions = cashierSessions.filter(s => s.status === "closed");
+  const averageSales = closedSessions.length > 0 ? totalSales / closedSessions.length : 0;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Carregando histórico...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -215,34 +218,40 @@ const CashierHistory = () => {
             <TableBody>
               {filteredSessions.map((session) => (
                 <TableRow key={session.id}>
-                  <TableCell className="font-medium">{session.id}</TableCell>
+                  <TableCell className="font-medium">{session.session_code}</TableCell>
                   <TableCell>
-                    {new Date(session.date).toLocaleDateString('pt-BR')}
+                    {new Date(session.open_time).toLocaleDateString('pt-BR')}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">
                       <User className="h-4 w-4 text-muted-foreground" />
-                      <span>{session.employeeName}</span>
+                      <span>{session.employee_name}</span>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">
-                      <div>Abertura: {session.openTime}</div>
-                      {session.closeTime && (
-                        <div>Fechamento: {session.closeTime}</div>
+                      <div>Abertura: {new Date(session.open_time).toLocaleTimeString('pt-BR', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}</div>
+                      {session.close_time && (
+                        <div>Fechamento: {new Date(session.close_time).toLocaleTimeString('pt-BR', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}</div>
                       )}
                     </div>
                   </TableCell>
                   <TableCell className="font-medium">
-                    R$ {session.totalSales.toLocaleString('pt-BR')}
+                    R$ {Number(session.total_sales).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </TableCell>
                   <TableCell>
-                    {session.status === "closed" && (
+                    {session.status === "closed" && session.difference !== null && (
                       <span className={`font-medium ${
-                        session.difference === 0 ? 'text-blue-600' :
-                        session.difference > 0 ? 'text-yellow-600' : 'text-red-600'
+                        Number(session.difference) === 0 ? 'text-blue-600' :
+                        Number(session.difference) > 0 ? 'text-yellow-600' : 'text-red-600'
                       }`}>
-                        {session.difference > 0 ? '+' : ''}R$ {session.difference.toFixed(2)}
+                        {Number(session.difference) > 0 ? '+' : ''}R$ {Number(session.difference).toFixed(2)}
                       </span>
                     )}
                     {session.status === "open" && (

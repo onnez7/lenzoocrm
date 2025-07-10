@@ -1,10 +1,11 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   Select,
   SelectContent,
@@ -21,8 +22,9 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
-import { Shield, Users, Settings, Eye, Edit, Trash2, Plus } from "lucide-react";
+import { Shield, Users, Settings, Eye, Edit, Trash2, Plus, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import employeeService, { Role } from "@/services/employeeService";
 
 interface Permission {
   module: string;
@@ -32,13 +34,9 @@ interface Permission {
   delete: boolean;
 }
 
-interface Role {
-  id: string;
-  name: string;
-  description: string;
+interface RoleWithPermissions extends Role {
   permissions: Permission[];
   employeeCount: number;
-  isActive: boolean;
 }
 
 const modules = [
@@ -58,75 +56,62 @@ const modules = [
   { key: 'settings', name: 'Configurações do Sistema' },
 ];
 
-const initialRoles: Role[] = [
-  {
-    id: "1",
-    name: "Administrador",
-    description: "Acesso total ao sistema",
-    employeeCount: 1,
-    isActive: true,
-    permissions: modules.map(module => ({
-      module: module.key,
-      view: true,
-      create: true,
-      edit: true,
-      delete: true
-    }))
-  },
-  {
-    id: "2",
-    name: "Gerente",
-    description: "Acesso à gestão e relatórios",
-    employeeCount: 1,
-    isActive: true,
-    permissions: modules.map(module => ({
-      module: module.key,
-      view: true,
-      create: !['settings', 'user_settings'].includes(module.key),
-      edit: !['settings', 'user_settings'].includes(module.key),
-      delete: ['clients', 'products', 'appointments', 'orders'].includes(module.key)
-    }))
-  },
-  {
-    id: "3",
-    name: "Vendedor",
-    description: "Acesso básico para vendas",
-    employeeCount: 2,
-    isActive: true,
-    permissions: modules.map(module => ({
-      module: module.key,
-      view: ['dashboard', 'clients', 'products', 'appointments', 'crm', 'user_profile', 'user_settings'].includes(module.key),
-      create: ['clients', 'appointments'].includes(module.key),
-      edit: ['clients', 'appointments', 'user_profile', 'user_settings'].includes(module.key),
-      delete: false
-    }))
-  },
-  {
-    id: "4",
-    name: "Técnico",
-    description: "Acesso técnico especializado",
-    employeeCount: 1,
-    isActive: true,
-    permissions: modules.map(module => ({
-      module: module.key,
-      view: ['dashboard', 'clients', 'products', 'stock', 'orders', 'appointments', 'user_profile', 'user_settings'].includes(module.key),
-      create: ['orders', 'stock'].includes(module.key),
-      edit: ['orders', 'stock', 'user_profile', 'user_settings'].includes(module.key),
-      delete: false
-    }))
-  }
-];
-
 const SettingsPermissions = () => {
-  const [roles, setRoles] = useState<Role[]>(initialRoles);
-  const [selectedRole, setSelectedRole] = useState<string>(roles[0].id);
+  const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
+  const [selectedRole, setSelectedRole] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editingRole, setEditingRole] = useState<RoleWithPermissions | null>(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    description: ""
+  });
   const { toast } = useToast();
 
-  const currentRole = roles.find(role => role.id === selectedRole);
+  const loadRoles = async () => {
+    try {
+      setLoading(true);
+      const rolesData = await employeeService.getRoles();
+      
+      // Converter para o formato com permissões
+      const rolesWithPermissions: RoleWithPermissions[] = rolesData.map(role => ({
+        ...role,
+        employeeCount: 0, // TODO: Implementar contagem de funcionários
+        permissions: modules.map(module => ({
+          module: module.key,
+          view: true, // TODO: Implementar permissões reais
+          create: ['dashboard', 'settings'].includes(module.key) ? false : true,
+          edit: ['dashboard', 'settings'].includes(module.key) ? false : true,
+          delete: ['clients', 'products', 'appointments', 'orders'].includes(module.key)
+        }))
+      }));
+      
+      setRoles(rolesWithPermissions);
+      if (rolesWithPermissions.length > 0 && !selectedRole) {
+        setSelectedRole(rolesWithPermissions[0].id.toString());
+      }
+    } catch (error: any) {
+      console.error('Erro ao carregar cargos:', error);
+      toast({
+        title: "Erro",
+        description: error.response?.data?.message || "Erro ao carregar cargos",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRoles();
+  }, []);
+
+  const currentRole = roles.find(role => role.id.toString() === selectedRole);
 
   const handlePermissionChange = (moduleKey: string, action: keyof Permission, value: boolean) => {
     setRoles(prev => prev.map(role => 
-      role.id === selectedRole
+      role.id.toString() === selectedRole
         ? {
             ...role,
             permissions: role.permissions.map(perm => 
@@ -139,20 +124,35 @@ const SettingsPermissions = () => {
     ));
   };
 
-  const savePermissions = () => {
-    toast({
-      title: "Permissões salvas",
-      description: "As permissões foram atualizadas com sucesso.",
-    });
+  const savePermissions = async () => {
+    try {
+      setSaving(true);
+      // TODO: Implementar salvamento real das permissões
+      toast({
+        title: "Permissões salvas",
+        description: "As permissões foram atualizadas com sucesso.",
+      });
+    } catch (error: any) {
+      console.error('Erro ao salvar permissões:', error);
+      toast({
+        title: "Erro",
+        description: error.response?.data?.message || "Erro ao salvar permissões",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const createNewRole = () => {
-    const newRole: Role = {
-      id: Date.now().toString(),
+    const newRole: RoleWithPermissions = {
+      id: Date.now(),
       name: "Novo Cargo",
       description: "Descrição do novo cargo",
+      is_active: true,
       employeeCount: 0,
-      isActive: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
       permissions: modules.map(module => ({
         module: module.key,
         view: false,
@@ -163,15 +163,24 @@ const SettingsPermissions = () => {
     };
     
     setRoles(prev => [...prev, newRole]);
-    setSelectedRole(newRole.id);
+    setSelectedRole(newRole.id.toString());
   };
 
   const deleteRole = (roleId: string) => {
-    setRoles(prev => prev.filter(role => role.id !== roleId));
+    setRoles(prev => prev.filter(role => role.id.toString() !== roleId));
     if (selectedRole === roleId) {
-      setSelectedRole(roles[0].id);
+      setSelectedRole(roles[0]?.id.toString() || "");
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Carregando permissões...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -207,11 +216,11 @@ const SettingsPermissions = () => {
                 <div
                   key={role.id}
                   className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                    selectedRole === role.id 
+                    selectedRole === role.id.toString() 
                       ? 'border-primary bg-primary/5' 
                       : 'border-border hover:bg-muted/50'
                   }`}
-                  onClick={() => setSelectedRole(role.id)}
+                  onClick={() => setSelectedRole(role.id.toString())}
                 >
                   <div className="flex items-center justify-between">
                     <div>
@@ -220,8 +229,8 @@ const SettingsPermissions = () => {
                         {role.employeeCount} funcionários
                       </div>
                     </div>
-                    <Badge variant={role.isActive ? "default" : "secondary"}>
-                      {role.isActive ? "Ativo" : "Inativo"}
+                    <Badge variant={role.is_active ? "default" : "secondary"}>
+                      {role.is_active ? "Ativo" : "Inativo"}
                     </Badge>
                   </div>
                 </div>
@@ -313,7 +322,7 @@ const SettingsPermissions = () => {
                       <Button 
                         variant="destructive" 
                         size="sm"
-                        onClick={() => deleteRole(currentRole.id)}
+                        onClick={() => deleteRole(currentRole.id.toString())}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Excluir Cargo
@@ -321,8 +330,12 @@ const SettingsPermissions = () => {
                     )}
                   </div>
                   
-                  <Button onClick={savePermissions}>
-                    <Settings className="mr-2 h-4 w-4" />
+                  <Button onClick={savePermissions} disabled={saving}>
+                    {saving ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Settings className="mr-2 h-4 w-4" />
+                    )}
                     Salvar Permissões
                   </Button>
                 </div>
@@ -388,8 +401,8 @@ const SettingsPermissions = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={role.isActive ? "default" : "secondary"}>
-                        {role.isActive ? "Ativo" : "Inativo"}
+                      <Badge variant={role.is_active ? "default" : "secondary"}>
+                        {role.is_active ? "Ativo" : "Inativo"}
                       </Badge>
                     </TableCell>
                   </TableRow>

@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,53 +12,89 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Search, Users, Eye, Calendar } from "lucide-react";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Search, Users, Eye, Calendar, Loader2 } from "lucide-react";
+import { clientService, Client, PaginationInfo, ClientsStats } from "@/services/clientService";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ClientsList = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+    hasNext: false,
+    hasPrev: false
+  });
+  const [stats, setStats] = useState<ClientsStats>({
+    total: 0,
+    active: 0,
+    inactive: 0
+  });
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const { toast } = useToast();
+  const { isAuthenticated } = useAuth();
 
-  // Mock data
-  const clients = [
-    {
-      id: "1",
-      name: "João Silva",
-      email: "joao@email.com",
-      phone: "(11) 99999-9999",
-      lastVisit: "2024-01-15",
-      status: "active",
-      totalPurchases: "R$ 1.250,00",
-      appointments: 3,
-    },
-    {
-      id: "2",
-      name: "Maria Santos",
-      email: "maria@email.com",
-      phone: "(11) 88888-8888",
-      lastVisit: "2024-01-12",
-      status: "active",
-      totalPurchases: "R$ 890,00",
-      appointments: 2,
-    },
-    {
-      id: "3",
-      name: "Pedro Costa",
-      email: "pedro@email.com",
-      phone: "(11) 77777-7777",
-      lastVisit: "2023-12-20",
-      status: "inactive",
-      totalPurchases: "R$ 450,00",
-      appointments: 1,
-    },
-  ];
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadClients();
+    }
+  }, [isAuthenticated, pagination.page, itemsPerPage]);
 
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.phone.includes(searchTerm)
-  );
+  const loadClients = async () => {
+    try {
+      setLoading(true);
+      const data = await clientService.getAllClients({
+        page: pagination.page,
+        limit: itemsPerPage,
+        search: searchTerm
+      });
+      setClients(data.clients);
+      setPagination(data.pagination);
+      setStats(data.stats);
+    } catch (error) {
+      console.error('Erro ao carregar clientes:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os clientes.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const getStatusBadge = (status: string) => {
-    return status === "active" ? (
+  const handleSearch = () => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
+  const handlePageChange = (page: number) => {
+    setPagination(prev => ({ ...prev, page }));
+  };
+
+  const handleItemsPerPageChange = (value: string) => {
+    const newLimit = parseInt(value);
+    setItemsPerPage(newLimit);
+    setPagination(prev => ({ ...prev, page: 1, limit: newLimit }));
+  };
+
+  const getStatusBadge = (client: Client) => {
+    // Considerar cliente ativo se tem email ou telefone
+    const isActive = client.email || client.phone;
+    return isActive ? (
       <Badge variant="default" className="bg-green-100 text-green-800">
         Ativo
       </Badge>
@@ -68,6 +103,83 @@ const ClientsList = () => {
         Inativo
       </Badge>
     );
+  };
+
+  const renderPaginationItems = () => {
+    const items = [];
+    const currentPage = pagination.page;
+    const totalPages = pagination.totalPages;
+
+    // Botão anterior
+    items.push(
+      <PaginationItem key="prev">
+        <PaginationPrevious 
+          onClick={() => handlePageChange(currentPage - 1)}
+          className={!pagination.hasPrev ? "pointer-events-none opacity-50" : "cursor-pointer"}
+        />
+      </PaginationItem>
+    );
+
+    // Páginas
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(totalPages, currentPage + 2);
+
+    if (startPage > 1) {
+      items.push(
+        <PaginationItem key="1">
+          <PaginationLink onClick={() => handlePageChange(1)}>1</PaginationLink>
+        </PaginationItem>
+      );
+      if (startPage > 2) {
+        items.push(
+          <PaginationItem key="ellipsis1">
+            <PaginationEllipsis />
+          </PaginationItem>
+        );
+      }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      items.push(
+        <PaginationItem key={i}>
+          <PaginationLink 
+            onClick={() => handlePageChange(i)}
+            isActive={i === currentPage}
+          >
+            {i}
+          </PaginationLink>
+        </PaginationItem>
+      );
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        items.push(
+          <PaginationItem key="ellipsis2">
+            <PaginationEllipsis />
+          </PaginationItem>
+        );
+      }
+      items.push(
+        <PaginationItem key={totalPages}>
+          <PaginationLink onClick={() => handlePageChange(totalPages)}>
+            {totalPages}
+          </PaginationLink>
+        </PaginationItem>
+      );
+    }
+
+    // Botão próximo
+    items.push(
+      <PaginationItem key="next">
+        <PaginationNext 
+          onClick={() => handlePageChange(currentPage + 1)}
+          className={!pagination.hasNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
+        />
+      </PaginationItem>
+    );
+
+    return items;
   };
 
   return (
@@ -98,7 +210,7 @@ const ClientsList = () => {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{clients.length}</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
           </CardContent>
         </Card>
         <Card>
@@ -109,34 +221,50 @@ const ClientsList = () => {
             <Users className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {clients.filter(c => c.status === "active").length}
-            </div>
+            <div className="text-2xl font-bold">{stats.active}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Novos este Mês
+              Clientes Inativos
             </CardTitle>
-            <Users className="h-4 w-4 text-blue-600" />
+            <Users className="h-4 w-4 text-gray-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">15</div>
+            <div className="text-2xl font-bold">{stats.inactive}</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="flex items-center space-x-2">
+      {/* Search and Filters */}
+      <div className="flex items-center space-x-4">
         <div className="relative flex-1">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por nome, email ou telefone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             className="pl-8"
           />
+        </div>
+        <Button onClick={handleSearch} variant="outline">
+          <Search className="h-4 w-4 mr-2" />
+          Buscar
+        </Button>
+        <div className="flex items-center space-x-2">
+          <span className="text-sm text-muted-foreground">Itens por página:</span>
+          <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+            <SelectTrigger className="w-20">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="20">20</SelectItem>
+              <SelectItem value="40">40</SelectItem>
+              <SelectItem value="60">60</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -149,50 +277,85 @@ const ClientsList = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Contato</TableHead>
-                <TableHead>Última Visita</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Total Compras</TableHead>
-                <TableHead>Consultas</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredClients.map((client) => (
-                <TableRow key={client.id}>
-                  <TableCell className="font-medium">{client.name}</TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="text-sm">{client.email}</div>
-                      <div className="text-xs text-muted-foreground">{client.phone}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{new Date(client.lastVisit).toLocaleDateString('pt-BR')}</TableCell>
-                  <TableCell>{getStatusBadge(client.status)}</TableCell>
-                  <TableCell className="font-medium">{client.totalPurchases}</TableCell>
-                  <TableCell>{client.appointments}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link to={`/clients/${client.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link to={`/appointments/new?clientId=${client.id}`}>
-                          <Calendar className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <span className="ml-2">Carregando clientes...</span>
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Contato</TableHead>
+                    <TableHead>Última Visita</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Total Compras</TableHead>
+                    <TableHead>Consultas</TableHead>
+                    <TableHead>Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {clients.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        {searchTerm ? 'Nenhum cliente encontrado com essa busca.' : 'Nenhum cliente cadastrado.'}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    clients.map((client) => (
+                      <TableRow key={client.id}>
+                        <TableCell className="font-medium">{client.name}</TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="text-sm">{client.email || '-'}</div>
+                            <div className="text-xs text-muted-foreground">{client.phone || '-'}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {client.last_visit ? new Date(client.last_visit).toLocaleDateString('pt-BR') : 'Nunca'}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(client)}</TableCell>
+                        <TableCell className="font-medium">
+                          {client.total_purchases ? `R$ ${client.total_purchases.toFixed(2).replace('.', ',')}` : 'R$ 0,00'}
+                        </TableCell>
+                        <TableCell>{client.appointments_count || 0}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <Button variant="ghost" size="sm" asChild>
+                              <Link to={`/clients/${client.id}`}>
+                                <Eye className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                            <Button variant="ghost" size="sm" asChild>
+                              <Link to={`/appointments/new?clientId=${client.id}`}>
+                                <Calendar className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+
+              {/* Pagination */}
+              {pagination.totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6">
+                  <div className="text-sm text-muted-foreground">
+                    Mostrando {((pagination.page - 1) * pagination.limit) + 1} a {Math.min(pagination.page * pagination.limit, pagination.total)} de {pagination.total} clientes
+                  </div>
+                  <Pagination>
+                    <PaginationContent>
+                      {renderPaginationItems()}
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -1,7 +1,8 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const CRMClient = () => {
+  // Exemplo: clientId fixo para demonstração. No real, receberia via props, rota ou contexto.
+  const clientId = 1;
   return (
     <div className="space-y-6">
       <div>
@@ -13,14 +14,14 @@ const CRMClient = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Detalhes CRM</CardTitle>
+          <CardTitle>Informações do Cliente</CardTitle>
           <CardDescription>
-            Em desenvolvimento...
+            Dados do cliente serão carregados do backend
           </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            Esta página será implementada em breve.
+            Funcionalidade em desenvolvimento - integração com backend necessária
           </p>
         </CardContent>
       </Card>

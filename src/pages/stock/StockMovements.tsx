@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +18,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { 
   Search, 
   Filter,
@@ -27,99 +34,71 @@ import {
   RotateCcw,
   Calendar,
   Package,
-  ArrowUpDown
+  ArrowUpDown,
+  Eye,
+  Loader2
 } from "lucide-react";
-
-// Mock data para movimentações
-const mockMovements = [
-  {
-    id: "1",
-    productName: "Óculos Ray-Ban Aviador",
-    sku: "RB3025-001",
-    type: "entry" as const,
-    quantity: 10,
-    reason: "Compra - NF 12345",
-    employee: "João Silva",
-    date: "2024-01-22T10:30:00",
-    previousStock: 5,
-    newStock: 15
-  },
-  {
-    id: "2",
-    productName: "Armação Oakley OX8156",
-    sku: "OAK-8156-02",
-    type: "exit" as const,
-    quantity: -2,
-    reason: "Venda - Pedido #1001",
-    employee: "Maria Santos",
-    date: "2024-01-21T15:45:00",
-    previousStock: 10,
-    newStock: 8
-  },
-  {
-    id: "3",
-    productName: "Lente de Contato Acuvue",
-    sku: "JJ-OASYS-30",
-    type: "entry" as const,
-    quantity: 20,
-    reason: "Compra - NF 12346",
-    employee: "João Silva",
-    date: "2024-01-20T09:15:00",
-    previousStock: 5,
-    newStock: 25
-  },
-  {
-    id: "4",
-    productName: "Óculos Prada PR 17WS",
-    sku: "PR-17WS-1AB",
-    type: "exit" as const,
-    quantity: -1,
-    reason: "Venda - Pedido #1002",
-    employee: "Carlos Oliveira",
-    date: "2024-01-19T14:20:00",
-    previousStock: 4,
-    newStock: 3
-  },
-  {
-    id: "5",
-    productName: "Armação Chilli Beans",
-    sku: "CB-2024-BK",
-    type: "adjustment" as const,
-    quantity: -3,
-    reason: "Ajuste de inventário - Produtos danificados",
-    employee: "Maria Santos",
-    date: "2024-01-18T11:00:00",
-    previousStock: 3,
-    newStock: 0
-  },
-  {
-    id: "6",
-    productName: "Óculos Ray-Ban Aviador",
-    sku: "RB3025-001",
-    type: "exit" as const,
-    quantity: -1,
-    reason: "Venda - Pedido #1003",
-    employee: "Ana Costa",
-    date: "2024-01-17T16:30:00",
-    previousStock: 6,
-    newStock: 5
-  }
-];
+import { useToast } from "@/hooks/use-toast";
+import stockService, { StockMovement } from "@/services/stockService";
+import { useAuth } from "@/contexts/AuthContext";
 
 const StockMovements = () => {
+  const { toast } = useToast();
+  const { user } = useAuth();
+  
+  const [movements, setMovements] = useState<StockMovement[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [movements] = useState(mockMovements);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [selectedMovement, setSelectedMovement] = useState<StockMovement | null>(null);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+
+  const loadMovements = async () => {
+    try {
+      setLoading(true);
+      const params: any = {
+        limit: 100,
+        offset: 0
+      };
+
+      if (typeFilter !== "all") {
+        params.movement_type = typeFilter;
+      }
+      if (startDate) {
+        params.start_date = startDate;
+      }
+      if (endDate) {
+        params.end_date = endDate;
+      }
+
+      const movementsData = await stockService.listMovements(params);
+      setMovements(movementsData);
+    } catch (error: any) {
+      console.error('Erro ao carregar movimentações:', error);
+      toast({
+        title: "Erro",
+        description: error.response?.data?.message || "Erro ao carregar movimentações",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadMovements();
+  }, [typeFilter, startDate, endDate]);
 
   const filteredMovements = movements.filter(movement => {
     const matchesSearch = 
-      movement.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      movement.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      movement.reason.toLowerCase().includes(searchTerm.toLowerCase());
+      movement.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      movement.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      movement.reason?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      movement.reference_number?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesType = typeFilter === "all" || movement.type === typeFilter;
-    
-    return matchesSearch && matchesType;
+    return matchesSearch;
   });
 
   const getMovementConfig = (type: string, quantity: number) => {
@@ -148,6 +127,14 @@ const StockMovements = () => {
           color: quantity > 0 ? "text-green-600" : "text-red-600",
           sign: quantity > 0 ? "+" : ""
         };
+      case "transfer":
+        return {
+          label: "Transferência",
+          variant: "secondary" as const,
+          icon: ArrowUpDown,
+          color: "text-blue-600",
+          sign: ""
+        };
       default:
         return {
           label: "Desconhecido",
@@ -167,10 +154,32 @@ const StockMovements = () => {
     };
   };
 
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
+  const handleViewDetails = async (movement: StockMovement) => {
+    try {
+      const detailedMovement = await stockService.getMovementById(movement.id);
+      setSelectedMovement(detailedMovement);
+      setIsDetailDialogOpen(true);
+    } catch (error: any) {
+      console.error('Erro ao carregar detalhes da movimentação:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar detalhes da movimentação",
+        variant: "destructive",
+      });
+    }
+  };
+
   const totalMovements = filteredMovements.length;
-  const entriesCount = filteredMovements.filter(m => m.type === "entry").length;
-  const exitsCount = filteredMovements.filter(m => m.type === "exit").length;
-  const adjustmentsCount = filteredMovements.filter(m => m.type === "adjustment").length;
+  const entriesCount = filteredMovements.filter(m => m.movement_type === "entry").length;
+  const exitsCount = filteredMovements.filter(m => m.movement_type === "exit").length;
+  const adjustmentsCount = filteredMovements.filter(m => m.movement_type === "adjustment").length;
 
   return (
     <div className="space-y-6">
@@ -256,7 +265,7 @@ const StockMovements = () => {
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="Tipo" />
                 </SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg">
+                <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="entry">Entradas</SelectItem>
                   <SelectItem value="exit">Saídas</SelectItem>
@@ -266,79 +275,230 @@ const StockMovements = () => {
             </div>
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data/Hora</TableHead>
-                <TableHead>Produto</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Quantidade</TableHead>
-                <TableHead>Estoque</TableHead>
-                <TableHead>Motivo</TableHead>
-                <TableHead>Funcionário</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredMovements.map((movement) => {
-                const config = getMovementConfig(movement.type, movement.quantity);
-                const MovementIcon = config.icon;
-                const dateTime = formatDateTime(movement.date);
-
-                return (
-                  <TableRow key={movement.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{dateTime.date}</div>
-                        <div className="text-sm text-muted-foreground">{dateTime.time}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{movement.productName}</div>
-                        <div className="text-sm text-muted-foreground font-mono">{movement.sku}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={config.variant} className="flex items-center gap-1 w-fit">
-                        <MovementIcon className="h-3 w-3" />
-                        {config.label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <span className={`font-medium ${config.color}`}>
-                        {config.sign}{Math.abs(movement.quantity)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <span className="text-muted-foreground">{movement.previousStock}</span>
-                        <span className="mx-1">→</span>
-                        <span className="font-medium">{movement.newStock}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="max-w-xs truncate" title={movement.reason}>
-                        {movement.reason}
-                      </div>
-                    </TableCell>
-                    <TableCell>{movement.employee}</TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-
-          {filteredMovements.length === 0 && (
-            <div className="text-center py-8">
-              <Calendar className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-2 text-sm font-semibold">Nenhuma movimentação encontrada</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Tente ajustar os filtros de busca.
-              </p>
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
+            <div className="flex items-center space-x-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                placeholder="Data inicial"
+                className="w-40"
+              />
             </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-muted-foreground">até</span>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                placeholder="Data final"
+                className="w-40"
+              />
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setStartDate("");
+                setEndDate("");
+              }}
+            >
+              Limpar Filtros
+            </Button>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <span className="ml-2">Carregando movimentações...</span>
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data/Hora</TableHead>
+                    <TableHead>Produto</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Quantidade</TableHead>
+                    <TableHead>Estoque</TableHead>
+                    <TableHead>Motivo</TableHead>
+                    <TableHead>Usuário</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredMovements.map((movement) => {
+                    const config = getMovementConfig(movement.movement_type, movement.quantity);
+                    const MovementIcon = config.icon;
+                    const dateTime = formatDateTime(movement.movement_date);
+
+                    return (
+                      <TableRow key={movement.id}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{dateTime.date}</div>
+                            <div className="text-sm text-muted-foreground">{dateTime.time}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{movement.product_name}</div>
+                            <div className="text-sm text-muted-foreground font-mono">{movement.sku}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={config.variant} className="flex items-center gap-1 w-fit">
+                            <MovementIcon className="h-3 w-3" />
+                            {config.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className={`font-medium ${config.color}`}>
+                            {config.sign}{Math.abs(movement.quantity)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            <span className="text-muted-foreground">{movement.previous_stock}</span>
+                            <span className="mx-1">→</span>
+                            <span className="font-medium">{movement.new_stock}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="max-w-xs truncate" title={movement.reason}>
+                            {movement.reason}
+                          </div>
+                        </TableCell>
+                        <TableCell>{movement.user_name}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewDetails(movement)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+
+              {filteredMovements.length === 0 && !loading && (
+                <div className="text-center py-8">
+                  <Calendar className="mx-auto h-12 w-12 text-muted-foreground" />
+                  <h3 className="mt-2 text-sm font-semibold">Nenhuma movimentação encontrada</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Tente ajustar os filtros de busca.
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog de Detalhes */}
+      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Detalhes da Movimentação</DialogTitle>
+            <DialogDescription>
+              Informações completas da movimentação de estoque
+            </DialogDescription>
+          </DialogHeader>
+          {selectedMovement && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Produto</label>
+                  <p className="font-medium">{selectedMovement.product_name}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">SKU</label>
+                  <p className="font-mono">{selectedMovement.sku}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Tipo</label>
+                  <Badge variant={getMovementConfig(selectedMovement.movement_type, selectedMovement.quantity).variant}>
+                    {getMovementConfig(selectedMovement.movement_type, selectedMovement.quantity).label}
+                  </Badge>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Quantidade</label>
+                  <p className="font-medium">{selectedMovement.quantity}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Estoque Anterior</label>
+                  <p>{selectedMovement.previous_stock}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Novo Estoque</label>
+                  <p className="font-medium">{selectedMovement.new_stock}</p>
+                </div>
+                {selectedMovement.unit_cost && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Custo Unitário</label>
+                    <p>{formatCurrency(selectedMovement.unit_cost)}</p>
+                  </div>
+                )}
+                {selectedMovement.total_cost && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Custo Total</label>
+                    <p>{formatCurrency(selectedMovement.total_cost)}</p>
+                  </div>
+                )}
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Motivo</label>
+                <p>{selectedMovement.reason || "—"}</p>
+              </div>
+              
+              {selectedMovement.reference_number && (
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Número de Referência</label>
+                  <p>{selectedMovement.reference_number}</p>
+                </div>
+              )}
+              
+              {selectedMovement.supplier && (
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Fornecedor</label>
+                  <p>{selectedMovement.supplier}</p>
+                </div>
+              )}
+              
+              {selectedMovement.customer && (
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Cliente</label>
+                  <p>{selectedMovement.customer}</p>
+                </div>
+              )}
+              
+              {selectedMovement.notes && (
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Observações</label>
+                  <p>{selectedMovement.notes}</p>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Usuário</label>
+                  <p>{selectedMovement.user_name}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Data/Hora</label>
+                  <p>{formatDateTime(selectedMovement.movement_date).date} às {formatDateTime(selectedMovement.movement_date).time}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -10,6 +9,8 @@ import {
   BarChart3,
   CreditCard,
   ChevronDown,
+  Building2,
+  Package,
 } from "lucide-react";
 
 import {
@@ -29,17 +30,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { NavUser } from "@/components/nav-user";
+import { NavUser } from "@/components/admin-user";
 import Logo from "@/components/logo";
 import { IconChevronDown, IconChartBarPopular } from "@tabler/icons-react";
+import { useAuth } from "@/contexts/AuthContext";
 
-const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-};
 
 const navigationItems = [
   {
@@ -63,6 +58,21 @@ const navigationItems = [
     icon: CreditCard,
   },
   {
+    title: "Usuarios",
+    url: "/admin/users",
+    icon: Users,
+  },
+  {
+    title: "Franquias",
+    url: "/admin/franchises",
+    icon: Building2,
+  },
+  {
+    title: "Produtos",
+    url: "/admin/products",
+    icon: Package,
+  },
+  {
     title: "Financeiro",
     url: "/admin/finance",
     icon: IconChartBarPopular,
@@ -84,6 +94,7 @@ export function AdminSidebar() {
   const location = useLocation();
   const currentPath = location.pathname;
   const [openGroups, setOpenGroups] = useState<string[]>([]);
+  const { user } = useAuth();
 
   const collapsed = state === "collapsed";
 
@@ -184,7 +195,11 @@ export function AdminSidebar() {
           </SidebarGroup>
         </SidebarContent>
         <SidebarFooter>
-          <NavUser user={data.user} />
+          <NavUser user={{
+            name: user?.name || "",
+            email: user?.email || "",
+            avatar: ""
+          }} />
         </SidebarFooter>
       </Sidebar>
     );

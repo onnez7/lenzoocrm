@@ -1,9 +1,9 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { Layout } from "@/components/Layout";
 import { AdminLayout } from "@/components/AdminLayout";
 import Login from "@/pages/auth/Login";
@@ -21,6 +21,7 @@ import Stock from "@/pages/stock/Stock";
 import StockEntry from "@/pages/stock/StockEntry";
 import StockMovements from "@/pages/stock/StockMovements";
 import OrdersList from "@/pages/orders/OrdersList";
+import OrderDetails from "@/pages/orders/OrderDetails";
 import OrderForm from "@/pages/orders/OrderForm";
 import Cashier from "@/pages/cashier/Cashier";
 import CashierOpen from "@/pages/cashier/CashierOpen";
@@ -42,7 +43,7 @@ import UserProfile from "@/pages/users/UserProfile";
 import UserSettings from "@/pages/users/UserSettings";
 import UserActivityLog from "@/pages/users/UserActivityLog";
 import SupportTickets from "@/pages/support/SupportTickets";
-import InternalChat from "@/pages/chat/InternalChat";
+import FranchiseChat from "@/pages/chat/FranchiseChat";
 import Integrations from "@/pages/integrations/Integrations";
 import SettingsProfile from "@/pages/settings/SettingsProfile";
 import SettingsInvoices from "@/pages/settings/SettingsInvoices";
@@ -56,10 +57,15 @@ import AdminSubscriptions from "@/pages/admin/AdminSubscriptions";
 import AdminUsage from "@/pages/admin/AdminUsage";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import NotFound from "@/pages/NotFound";
-import AdminSupport from "@/pages/admin/AdminSupport";
+//import AdminSupport from "@/pages/admin/AdminSupport";
 import NewRule from "@/pages/crm/NewRule";
 import AdminFinance from "@/pages/admin/AdminFinance";
-
+import UsersAdmin from "@/pages/admin/UsersAdmin";
+import FranchisesAdmin from "@/pages/admin/FranchisesAdmin";
+import AdminProducts from "@/pages/admin/AdminProducts";
+import { RequireAuth } from "@/contexts/RequireAuth";
+import Subscription from "@/pages/Subscription/Subscription";
+import AdminSupport from "@/pages/admin/AdminSupportTickets";
 
 
 const queryClient = new QueryClient();
@@ -70,6 +76,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <AuthProvider>
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           
@@ -78,13 +85,13 @@ const App = () => (
           
           {/* Main Application Routes */}
           <Route path="/" element={<Layout />}>
-            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
             
             {/* Clients routes */}
-            <Route path="clients" element={<ClientsList />} />
-            <Route path="clients/new" element={<ClientForm />} />
-            <Route path="clients/:id" element={<ClientDetails />} />
-            <Route path="clients/:id/edit" element={<ClientForm />} />
+            <Route path="clients" element={<RequireAuth><ClientsList /></RequireAuth>} />
+            <Route path="clients/new" element={<RequireAuth><ClientForm /></RequireAuth>} />
+            <Route path="clients/:id" element={<RequireAuth><ClientDetails /></RequireAuth>} />
+            <Route path="clients/:id/edit" element={<RequireAuth><ClientForm /></RequireAuth>} />
             
             {/* Products routes */}
             <Route path="products" element={<ProductsList />} />
@@ -103,6 +110,7 @@ const App = () => (
             {/* Orders routes */}
             <Route path="orders" element={<OrdersList />} />
             <Route path="orders/new" element={<OrderForm />} />
+            <Route path="orders/:id" element={<OrderDetails />} />
             <Route path="orders/:id/edit" element={<OrderForm />} />
             
             {/* Cashier routes */}
@@ -115,6 +123,7 @@ const App = () => (
             <Route path="appointments" element={<AppointmentsList />} />
             <Route path="appointments/calendar" element={<AppointmentsCalendar />} />
             <Route path="appointments/new" element={<AppointmentForm />} />
+            <Route path="appointments/:id" element={<AppointmentForm />} />
             <Route path="appointments/:id/edit" element={<AppointmentForm />} />
             
             {/* Automation routes */}
@@ -138,7 +147,7 @@ const App = () => (
             {/* User routes */}
             <Route path="user/profile" element={<UserProfile />} />
             <Route path="user/settings" element={<UserSettings />} />
-            <Route path="chat/internal" element={<InternalChat />} />
+            <Route path="chat/internal" element={<FranchiseChat />} />
             
             {/* Settings routes */}
             <Route path="settings/profile" element={<SettingsProfile />} />
@@ -149,22 +158,30 @@ const App = () => (
             <Route path="settings/tickets" element={<SupportTickets />} />
             <Route path="settings/integrations" element={<Integrations />} />
             <Route path="settings/activity-log" element={<UserActivityLog />} />
+            <Route path="subscription" element={<Subscription />} />
           </Route>
 
           {/* Admin Area Routes */}
           <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<AdminDashboard />} />
-            <Route path="tenants" element={<AdminTenants />} />
-            <Route path="tenants/:id" element={<AdminTenantDetails />} />
-            <Route path="subscriptions" element={<AdminSubscriptions />} />
-            <Route path="support" element={<AdminSupport />} />
-            <Route path="usage" element={<AdminUsage />} />
-            <Route path="settings" element={<AdminSettings />} />
-            <Route path="finance" element={<AdminFinance />} />
+            <Route index element={<RequireAuth><AdminDashboard /></RequireAuth>} />
+            <Route path="tenants" element={<RequireAuth><AdminTenants /></RequireAuth>} />
+            <Route path="tenants/:id" element={<RequireAuth><AdminTenantDetails /></RequireAuth>} />
+            <Route path="subscriptions" element={<RequireAuth><AdminSubscriptions /></RequireAuth>} />
+            <Route path="support" element={<RequireAuth><AdminSupport /></RequireAuth>} />
+            <Route path="usage" element={<RequireAuth><AdminUsage /></RequireAuth>} />
+            <Route path="settings" element={<RequireAuth><AdminSettings /></RequireAuth>} />
+            <Route path="finance" element={<RequireAuth><AdminFinance /></RequireAuth>} />
+            <Route path="users" element={<RequireAuth><UsersAdmin /></RequireAuth>} />
+            <Route path="franchises" element={<RequireAuth><FranchisesAdmin /></RequireAuth>} />
+            <Route path="products" element={<RequireAuth><AdminProducts /></RequireAuth>} />
+            <Route path="user/profile" element={<UserProfile />} />
+            <Route path="user/settings" element={<UserSettings />} />
+
           </Route>
           
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

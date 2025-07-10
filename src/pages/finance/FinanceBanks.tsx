@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,117 +27,128 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, CreditCard, Building2, Eye, EyeOff } from "lucide-react";
+import { Plus, Search, CreditCard as CreditCardIcon, Building2, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-interface BankAccount {
-  id: string;
-  bankName: string;
-  accountType: 'checking' | 'savings' | 'business';
-  accountNumber: string;
-  agency: string;
-  balance: number;
-  isActive: boolean;
-  pixKey?: string;
-}
-
-interface CreditCard {
-  id: string;
-  cardName: string;
-  bankName: string;
-  lastFourDigits: string;
-  brand: string;
-  limit: number;
-  availableLimit: number;
-  dueDate: number;
-  isActive: boolean;
-}
-
-const mockBankAccounts: BankAccount[] = [
-  {
-    id: "1",
-    bankName: "Banco do Brasil",
-    accountType: "business",
-    accountNumber: "12345-6",
-    agency: "1234-5",
-    balance: 15750.00,
-    isActive: true,
-    pixKey: "12.345.678/0001-90"
-  },
-  {
-    id: "2",
-    bankName: "Itaú",
-    accountType: "checking",
-    accountNumber: "98765-4",
-    agency: "9876-5",
-    balance: 8200.00,
-    isActive: true,
-    pixKey: "+55 11 99999-9999"
-  }
-];
-
-const mockCreditCards: CreditCard[] = [
-  {
-    id: "1",
-    cardName: "Cartão Empresarial",
-    bankName: "Banco do Brasil",
-    lastFourDigits: "1234",
-    brand: "Visa",
-    limit: 10000.00,
-    availableLimit: 7500.00,
-    dueDate: 15,
-    isActive: true
-  },
-  {
-    id: "2",
-    cardName: "Itaú Click Empresarial",
-    bankName: "Itaú",
-    lastFourDigits: "5678",
-    brand: "Mastercard",
-    limit: 15000.00,
-    availableLimit: 12000.00,
-    dueDate: 10,
-    isActive: true
-  }
-];
+import bankAccountService, { BankAccount, CreateBankAccountData } from "@/services/bankAccountService";
+import creditCardService, { CreditCard, CreateCreditCardData } from "@/services/creditCardService";
 
 const FinanceBanks = () => {
   const { toast } = useToast();
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(mockBankAccounts);
-  const [creditCards, setCreditCards] = useState<CreditCard[]>(mockCreditCards);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [creditCards, setCreditCards] = useState<CreditCard[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isBankDialogOpen, setIsBankDialogOpen] = useState(false);
   const [isCardDialogOpen, setIsCardDialogOpen] = useState(false);
   const [showBalances, setShowBalances] = useState(false);
+  const [bankFormData, setBankFormData] = useState<CreateBankAccountData>({
+    bank_name: '',
+    account_type: 'checking',
+    account_number: '',
+    agency: '',
+    balance: 0,
+    pix_key: ''
+  });
+  const [cardFormData, setCardFormData] = useState<CreateCreditCardData>({
+    card_name: '',
+    bank_name: '',
+    last_four_digits: '',
+    brand: 'visa',
+    limit_amount: 0,
+    due_date: 15
+  });
 
-  const getAccountTypeLabel = (type: string) => {
-    switch (type) {
-      case 'checking': return 'Conta Corrente';
-      case 'savings': return 'Poupança';
-      case 'business': return 'Conta Empresarial';
-      default: return type;
+  // Carregar dados
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      const [bankData, cardData] = await Promise.all([
+        bankAccountService.getBankAccounts(),
+        creditCardService.getCreditCards()
+      ]);
+      setBankAccounts(bankData);
+      setCreditCards(cardData);
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar dados financeiros",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddBankAccount = async () => {
+    try {
+      await bankAccountService.createBankAccount(bankFormData);
+      toast({
+        title: "Sucesso",
+        description: "Conta bancária adicionada com sucesso!",
+      });
+      setIsBankDialogOpen(false);
+      setBankFormData({
+        bank_name: '',
+        account_type: 'checking',
+        account_number: '',
+        agency: '',
+        balance: 0,
+        pix_key: ''
+      });
+      loadData();
+    } catch (error) {
+      console.error('Erro ao criar conta bancária:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao criar conta bancária",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAddCreditCard = async () => {
+    try {
+      await creditCardService.createCreditCard(cardFormData);
+      toast({
+        title: "Sucesso",
+        description: "Cartão de crédito adicionado com sucesso!",
+      });
+      setIsCardDialogOpen(false);
+      setCardFormData({
+        card_name: '',
+        bank_name: '',
+        last_four_digits: '',
+        brand: 'visa',
+        limit_amount: 0,
+        due_date: 15
+      });
+      loadData();
+    } catch (error) {
+      console.error('Erro ao criar cartão de crédito:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao criar cartão de crédito",
+        variant: "destructive",
+      });
     }
   };
 
   const totalBalance = bankAccounts.reduce((sum, account) => sum + account.balance, 0);
-  const totalCreditLimit = creditCards.reduce((sum, card) => sum + card.limit, 0);
-  const totalAvailableCredit = creditCards.reduce((sum, card) => sum + card.availableLimit, 0);
+  const totalCreditLimit = creditCards.reduce((sum, card) => sum + card.limit_amount, 0);
+  const totalAvailableCredit = creditCards.reduce((sum, card) => sum + card.available_limit, 0);
 
-  const handleAddBankAccount = () => {
-    toast({
-      title: "Conta bancária adicionada",
-      description: "A conta foi adicionada com sucesso!",
-    });
-    setIsBankDialogOpen(false);
-  };
-
-  const handleAddCreditCard = () => {
-    toast({
-      title: "Cartão de crédito adicionado",
-      description: "O cartão foi adicionado com sucesso!",
-    });
-    setIsCardDialogOpen(false);
-  };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Carregando dados financeiros...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -168,11 +178,21 @@ const FinanceBanks = () => {
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label htmlFor="bankName">Nome do Banco</Label>
-                  <Input id="bankName" placeholder="Ex: Banco do Brasil" />
+                  <Input 
+                    id="bankName" 
+                    placeholder="Ex: Banco do Brasil"
+                    value={bankFormData.bank_name}
+                    onChange={(e) => setBankFormData({...bankFormData, bank_name: e.target.value})}
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="accountType">Tipo de Conta</Label>
-                  <Select>
+                  <Select 
+                    value={bankFormData.account_type} 
+                    onValueChange={(value: 'checking' | 'savings' | 'business') => 
+                      setBankFormData({...bankFormData, account_type: value})
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o tipo" />
                     </SelectTrigger>
@@ -186,16 +206,41 @@ const FinanceBanks = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="agency">Agência</Label>
-                    <Input id="agency" placeholder="1234-5" />
+                    <Input 
+                      id="agency" 
+                      placeholder="1234-5"
+                      value={bankFormData.agency}
+                      onChange={(e) => setBankFormData({...bankFormData, agency: e.target.value})}
+                    />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="account">Conta</Label>
-                    <Input id="account" placeholder="12345-6" />
+                    <Input 
+                      id="account" 
+                      placeholder="12345-6"
+                      value={bankFormData.account_number}
+                      onChange={(e) => setBankFormData({...bankFormData, account_number: e.target.value})}
+                    />
                   </div>
                 </div>
                 <div className="grid gap-2">
+                  <Label htmlFor="balance">Saldo Inicial</Label>
+                  <Input 
+                    id="balance" 
+                    type="number" 
+                    placeholder="0,00"
+                    value={bankFormData.balance}
+                    onChange={(e) => setBankFormData({...bankFormData, balance: parseFloat(e.target.value) || 0})}
+                  />
+                </div>
+                <div className="grid gap-2">
                   <Label htmlFor="pixKey">Chave PIX (opcional)</Label>
-                  <Input id="pixKey" placeholder="CPF, CNPJ, E-mail ou Telefone" />
+                  <Input 
+                    id="pixKey" 
+                    placeholder="CPF, CNPJ, E-mail ou Telefone"
+                    value={bankFormData.pix_key}
+                    onChange={(e) => setBankFormData({...bankFormData, pix_key: e.target.value})}
+                  />
                 </div>
               </div>
               <div className="flex justify-end gap-2">
@@ -212,7 +257,7 @@ const FinanceBanks = () => {
           <Dialog open={isCardDialogOpen} onOpenChange={setIsCardDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline">
-                <CreditCard className="mr-2 h-4 w-4" />
+                <CreditCardIcon className="mr-2 h-4 w-4" />
                 Novo Cartão
               </Button>
             </DialogTrigger>
@@ -226,16 +271,31 @@ const FinanceBanks = () => {
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label htmlFor="cardName">Nome do Cartão</Label>
-                  <Input id="cardName" placeholder="Ex: Cartão Empresarial" />
+                  <Input 
+                    id="cardName" 
+                    placeholder="Ex: Cartão Empresarial"
+                    value={cardFormData.card_name}
+                    onChange={(e) => setCardFormData({...cardFormData, card_name: e.target.value})}
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="cardBank">Banco</Label>
-                  <Input id="cardBank" placeholder="Ex: Banco do Brasil" />
+                  <Input 
+                    id="cardBank" 
+                    placeholder="Ex: Banco do Brasil"
+                    value={cardFormData.bank_name}
+                    onChange={(e) => setCardFormData({...cardFormData, bank_name: e.target.value})}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="cardBrand">Bandeira</Label>
-                    <Select>
+                    <Select 
+                      value={cardFormData.brand}
+                      onValueChange={(value: 'visa' | 'mastercard' | 'elo' | 'amex') => 
+                        setCardFormData({...cardFormData, brand: value})
+                      }
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
@@ -249,17 +309,37 @@ const FinanceBanks = () => {
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="lastDigits">Últimos 4 dígitos</Label>
-                    <Input id="lastDigits" placeholder="1234" maxLength={4} />
+                    <Input 
+                      id="lastDigits" 
+                      placeholder="1234" 
+                      maxLength={4}
+                      value={cardFormData.last_four_digits}
+                      onChange={(e) => setCardFormData({...cardFormData, last_four_digits: e.target.value})}
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="limit">Limite</Label>
-                    <Input id="limit" type="number" placeholder="10000.00" />
+                    <Input 
+                      id="limit" 
+                      type="number" 
+                      placeholder="10000.00"
+                      value={cardFormData.limit_amount}
+                      onChange={(e) => setCardFormData({...cardFormData, limit_amount: parseFloat(e.target.value) || 0})}
+                    />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="dueDate">Dia do Vencimento</Label>
-                    <Input id="dueDate" type="number" placeholder="15" min="1" max="31" />
+                    <Input 
+                      id="dueDate" 
+                      type="number" 
+                      placeholder="15" 
+                      min="1" 
+                      max="31"
+                      value={cardFormData.due_date}
+                      onChange={(e) => setCardFormData({...cardFormData, due_date: parseInt(e.target.value) || 15})}
+                    />
                   </div>
                 </div>
               </div>
@@ -291,7 +371,7 @@ const FinanceBanks = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {showBalances ? `R$ ${totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : "R$ •••••"}
+              {showBalances ? bankAccountService.formatCurrency(totalBalance) : "R$ •••••"}
             </div>
             <p className="text-xs text-muted-foreground">
               {bankAccounts.length} contas bancárias
@@ -302,11 +382,11 @@ const FinanceBanks = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Limite Total</CardTitle>
-            <CreditCard className="h-4 w-4 text-blue-600" />
+            <CreditCardIcon className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              R$ {totalCreditLimit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              {creditCardService.formatCurrency(totalCreditLimit)}
             </div>
             <p className="text-xs text-muted-foreground">
               {creditCards.length} cartões de crédito
@@ -317,11 +397,11 @@ const FinanceBanks = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Crédito Disponível</CardTitle>
-            <CreditCard className="h-4 w-4 text-purple-600" />
+            <CreditCardIcon className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">
-              R$ {totalAvailableCredit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              {creditCardService.formatCurrency(totalAvailableCredit)}
             </div>
             <p className="text-xs text-muted-foreground">
               Crédito disponível
@@ -342,45 +422,52 @@ const FinanceBanks = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Banco</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Agência/Conta</TableHead>
-                <TableHead>Saldo</TableHead>
-                <TableHead>PIX</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {bankAccounts.map((account) => (
-                <TableRow key={account.id}>
-                  <TableCell className="font-medium">{account.bankName}</TableCell>
-                  <TableCell>{getAccountTypeLabel(account.accountType)}</TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      <div>Ag: {account.agency}</div>
-                      <div>Cc: {account.accountNumber}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-medium text-green-600">
-                      {showBalances ? `R$ ${account.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : "R$ •••••"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {account.pixKey || "Não cadastrado"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={account.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                      {account.isActive ? 'Ativa' : 'Inativa'}
-                    </Badge>
-                  </TableCell>
+          {bankAccounts.length === 0 ? (
+            <div className="text-center py-8">
+              <Building2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground">Nenhuma conta bancária cadastrada</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Banco</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Agência/Conta</TableHead>
+                  <TableHead>Saldo</TableHead>
+                  <TableHead>PIX</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {bankAccounts.map((account) => (
+                  <TableRow key={account.id}>
+                    <TableCell className="font-medium">{account.bank_name}</TableCell>
+                    <TableCell>{bankAccountService.getAccountTypeLabel(account.account_type)}</TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        <div>Ag: {account.agency}</div>
+                        <div>Cc: {account.account_number}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-medium text-green-600">
+                        {showBalances ? bankAccountService.formatCurrency(account.balance) : "R$ •••••"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {account.pix_key || "Não cadastrado"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={bankAccountService.getStatusColor(account.is_active)}>
+                        {bankAccountService.getStatusLabel(account.is_active)}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -388,7 +475,7 @@ const FinanceBanks = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
+            <CreditCardIcon className="h-5 w-5" />
             Cartões de Crédito
           </CardTitle>
           <CardDescription>
@@ -396,46 +483,53 @@ const FinanceBanks = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cartão</TableHead>
-                <TableHead>Banco</TableHead>
-                <TableHead>Final</TableHead>
-                <TableHead>Bandeira</TableHead>
-                <TableHead>Limite</TableHead>
-                <TableHead>Disponível</TableHead>
-                <TableHead>Vencimento</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {creditCards.map((card) => (
-                <TableRow key={card.id}>
-                  <TableCell className="font-medium">{card.cardName}</TableCell>
-                  <TableCell>{card.bankName}</TableCell>
-                  <TableCell>•••• {card.lastFourDigits}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{card.brand}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    R$ {card.limit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-medium text-blue-600">
-                      R$ {card.availableLimit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
-                  </TableCell>
-                  <TableCell>Dia {card.dueDate}</TableCell>
-                  <TableCell>
-                    <Badge className={card.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                      {card.isActive ? 'Ativo' : 'Inativo'}
-                    </Badge>
-                  </TableCell>
+          {creditCards.length === 0 ? (
+            <div className="text-center py-8">
+              <CreditCardIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground">Nenhum cartão de crédito cadastrado</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cartão</TableHead>
+                  <TableHead>Banco</TableHead>
+                  <TableHead>Final</TableHead>
+                  <TableHead>Bandeira</TableHead>
+                  <TableHead>Limite</TableHead>
+                  <TableHead>Disponível</TableHead>
+                  <TableHead>Vencimento</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {creditCards.map((card) => (
+                  <TableRow key={card.id}>
+                    <TableCell className="font-medium">{card.card_name}</TableCell>
+                    <TableCell>{card.bank_name}</TableCell>
+                    <TableCell>•••• {card.last_four_digits}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{creditCardService.getBrandLabel(card.brand)}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {creditCardService.formatCurrency(card.limit_amount)}
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-medium text-blue-600">
+                        {creditCardService.formatCurrency(card.available_limit)}
+                      </span>
+                    </TableCell>
+                    <TableCell>Dia {card.due_date}</TableCell>
+                    <TableCell>
+                      <Badge className={creditCardService.getStatusColor(card.is_active)}>
+                        {creditCardService.getStatusLabel(card.is_active)}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

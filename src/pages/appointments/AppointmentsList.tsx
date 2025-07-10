@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,89 +18,85 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar, Clock, User, Phone, Plus, Search, Filter, Eye, Edit, Trash2 } from "lucide-react";
+import { Calendar, Clock, User, Phone, Plus, Search, Filter, Eye, Edit, Trash2, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-interface Appointment {
-  id: string;
-  clientName: string;
-  clientPhone: string;
-  service: string;
-  date: string;
-  time: string;
-  status: "agendado" | "confirmado" | "em_andamento" | "concluido" | "cancelado";
-  employee: string;
-  observations?: string;
-}
-
-const mockAppointments: Appointment[] = [
-  {
-    id: "1",
-    clientName: "Maria Silva",
-    clientPhone: "(11) 99999-1111",
-    service: "Consulta Oftalmológica",
-    date: "2024-01-15",
-    time: "09:00",
-    status: "confirmado",
-    employee: "Dr. João Santos",
-    observations: "Primeira consulta"
-  },
-  {
-    id: "2",
-    clientName: "Carlos Santos",
-    clientPhone: "(11) 99999-2222",
-    service: "Exame de Vista",
-    date: "2024-01-15",
-    time: "10:30",
-    status: "agendado",
-    employee: "Dra. Ana Costa"
-  },
-  {
-    id: "3",
-    clientName: "Luciana Oliveira",
-    clientPhone: "(11) 99999-3333",
-    service: "Adaptação de Lentes",
-    date: "2024-01-16",
-    time: "14:00",
-    status: "em_andamento",
-    employee: "Carlos Técnico"
-  }
-];
+import { useToast } from "@/hooks/use-toast";
+import appointmentService, { Appointment } from "@/services/appointmentService";
 
 const AppointmentsList = () => {
   const navigate = useNavigate();
-  const [appointments, setAppointments] = useState<Appointment[]>(mockAppointments);
+  const { toast } = useToast();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
+  const [isLoading, setIsLoading] = useState(true);
 
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case "confirmado": return "default";
-      case "agendado": return "secondary";
-      case "em_andamento": return "outline";
-      case "concluido": return "default";
-      case "cancelado": return "destructive";
-      default: return "secondary";
+  // Carregar agendamentos
+  useEffect(() => {
+    const loadAppointments = async () => {
+      try {
+        setIsLoading(true);
+        const data = await appointmentService.getAppointments();
+        setAppointments(data);
+        setFilteredAppointments(data);
+      } catch (error) {
+        console.error('Erro ao carregar agendamentos:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar agendamentos. Tente novamente.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadAppointments();
+  }, [toast]);
+
+  // Filtrar agendamentos
+  useEffect(() => {
+    const filtered = appointments.filter(appointment => {
+      const matchesSearch = appointment.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           appointment.service.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === "todos" || appointment.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+    setFilteredAppointments(filtered);
+  }, [appointments, searchTerm, statusFilter]);
+
+  // Deletar agendamento
+  const handleDelete = async (id: number) => {
+    if (!confirm('Tem certeza que deseja deletar este agendamento?')) {
+      return;
+    }
+
+    try {
+      await appointmentService.deleteAppointment(id);
+      setAppointments(prev => prev.filter(app => app.id !== id));
+      toast({
+        title: "Agendamento deletado",
+        description: "O agendamento foi deletado com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro ao deletar agendamento:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao deletar agendamento. Tente novamente.",
+        variant: "destructive"
+      });
     }
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "agendado": return "Agendado";
-      case "confirmado": return "Confirmado";
-      case "em_andamento": return "Em Andamento";
-      case "concluido": return "Concluído";
-      case "cancelado": return "Cancelado";
-      default: return status;
-    }
-  };
-
-  const filteredAppointments = appointments.filter(appointment => {
-    const matchesSearch = appointment.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         appointment.service.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "todos" || appointment.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Carregando agendamentos...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -145,11 +140,11 @@ const AppointmentsList = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos os Status</SelectItem>
-                <SelectItem value="agendado">Agendado</SelectItem>
-                <SelectItem value="confirmado">Confirmado</SelectItem>
-                <SelectItem value="em_andamento">Em Andamento</SelectItem>
-                <SelectItem value="concluido">Concluído</SelectItem>
-                <SelectItem value="cancelado">Cancelado</SelectItem>
+                {appointmentService.getStatuses().map((status) => (
+                  <SelectItem key={status.value} value={status.value}>
+                    {status.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -162,70 +157,89 @@ const AppointmentsList = () => {
           <CardTitle>Agendamentos ({filteredAppointments.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Serviço</TableHead>
-                <TableHead>Data/Hora</TableHead>
-                <TableHead>Profissional</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredAppointments.map((appointment) => (
-                <TableRow key={appointment.id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{appointment.clientName}</div>
-                      <div className="text-sm text-muted-foreground flex items-center gap-1">
-                        <Phone className="h-3 w-3" />
-                        {appointment.clientPhone}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{appointment.service}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
+          {filteredAppointments.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nenhum agendamento encontrado</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Serviço</TableHead>
+                  <TableHead>Data/Hora</TableHead>
+                  <TableHead>Profissional</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredAppointments.map((appointment) => (
+                  <TableRow key={appointment.id}>
+                    <TableCell>
                       <div>
-                        <div>{new Date(appointment.date).toLocaleDateString('pt-BR')}</div>
+                        <div className="font-medium">{appointment.client_name}</div>
                         <div className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {appointment.time}
+                          <Phone className="h-3 w-3" />
+                          {appointment.client_phone}
                         </div>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      {appointment.employee}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusVariant(appointment.status)}>
-                      {getStatusLabel(appointment.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="sm">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => navigate(`/appointments/${appointment.id}/edit`)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    </TableCell>
+                    <TableCell>{appointment.service}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <div>{appointmentService.formatDate(appointment.appointment_date)}</div>
+                          <div className="text-sm text-muted-foreground flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {appointmentService.formatTime(appointment.appointment_time)}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        {appointment.employee_name}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={appointmentService.getStatusVariant(appointment.status)}>
+                        {appointmentService.getStatusLabel(appointment.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => navigate(`/appointments/${appointment.id}`)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => navigate(`/appointments/${appointment.id}/edit`)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDelete(appointment.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

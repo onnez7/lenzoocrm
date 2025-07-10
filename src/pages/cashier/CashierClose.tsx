@@ -1,13 +1,31 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { DollarSign, Calculator, AlertTriangle, CheckCircle } from "lucide-react";
+import { DollarSign, Calculator, AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { cashierService } from "@/services/cashierService";
+
+interface CashierSession {
+  id: number;
+  session_code: string;
+  employee_id: number;
+  employee_name: string;
+  open_time: string;
+  close_time: string | null;
+  initial_amount: number;
+  final_amount: number | null;
+  cash_sales: number;
+  card_sales: number;
+  pix_sales: number;
+  total_sales: number;
+  difference: number | null;
+  status: 'open' | 'closed';
+  notes: string | null;
+}
 
 const CashierClose = () => {
   const navigate = useNavigate();
@@ -19,34 +37,83 @@ const CashierClose = () => {
     pixAmount: "",
     notes: "",
   });
+  const [currentSession, setCurrentSession] = useState<CashierSession | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Mock data - valores do sistema
-  const systemData = {
-    initialAmount: 100.00,
-    cashSales: 450.00,
-    cardSales: 1250.00,
-    pixSales: 680.00,
-    totalSales: 2380.00,
-    expectedCash: 550.00, // inicial + vendas em dinheiro
+  // Carregar dados da sessão atual
+  useEffect(() => {
+    loadCurrentSession();
+  }, []);
+
+  const loadCurrentSession = async () => {
+    try {
+      setIsLoading(true);
+      const response = await cashierService.checkOpenSession();
+      
+      if (response.session) {
+        setCurrentSession(response.session);
+      } else {
+        toast({
+          title: "Erro",
+          description: "Não há caixa aberto para fechar.",
+          variant: "destructive",
+        });
+        navigate("/cashier");
+      }
+    } catch (error) {
+      console.error('Erro ao carregar sessão:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar dados do caixa.",
+        variant: "destructive",
+      });
+      navigate("/cashier");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!currentSession) return;
     
     const cashAmount = parseFloat(formData.cashAmount) || 0;
     const cardAmount = parseFloat(formData.cardAmount) || 0;
     const pixAmount = parseFloat(formData.pixAmount) || 0;
     
     const totalCounted = cashAmount + cardAmount + pixAmount;
-    const difference = totalCounted - systemData.totalSales - systemData.initialAmount;
+    const expectedTotal = Number(currentSession.total_sales) + Number(currentSession.initial_amount);
+    const difference = totalCounted - expectedTotal;
     
-    toast({
-      title: "Caixa Fechado!",
-      description: `Fechamento realizado com ${difference === 0 ? 'sucesso' : difference > 0 ? 'sobra' : 'falta'} de R$ ${Math.abs(difference).toFixed(2)}.`,
-      variant: difference === 0 ? "default" : "destructive",
-    });
+    try {
+      setIsSubmitting(true);
+      
+      await cashierService.closeCashier({
+        cash_amount: cashAmount,
+        card_amount: cardAmount,
+        pix_amount: pixAmount,
+        notes: formData.notes || undefined
+      });
+      
+      toast({
+        title: "Caixa Fechado!",
+        description: `Fechamento realizado com ${difference === 0 ? 'sucesso' : difference > 0 ? 'sobra' : 'falta'} de R$ ${Math.abs(difference).toFixed(2)}.`,
+        variant: difference === 0 ? "default" : "destructive",
+      });
 
-    navigate("/cashier/history");
+      navigate("/cashier/history");
+    } catch (error: any) {
+      console.error('Erro ao fechar caixa:', error);
+      toast({
+        title: "Erro",
+        description: error.response?.data?.message || "Erro ao fechar o caixa.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -56,12 +123,28 @@ const CashierClose = () => {
     }));
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Carregando dados do caixa...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentSession) {
+    return null;
+  }
+
   const cashAmount = parseFloat(formData.cashAmount) || 0;
   const cardAmount = parseFloat(formData.cardAmount) || 0;
   const pixAmount = parseFloat(formData.pixAmount) || 0;
   const totalCounted = cashAmount + cardAmount + pixAmount;
-  const expectedTotal = systemData.totalSales + systemData.initialAmount;
+  const expectedTotal = Number(currentSession.total_sales) + Number(currentSession.initial_amount);
   const difference = totalCounted - expectedTotal;
+  const expectedCash = Number(currentSession.initial_amount) + Number(currentSession.cash_sales);
 
   return (
     <div className="space-y-6">
@@ -82,7 +165,7 @@ const CashierClose = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              R$ {systemData.initialAmount.toFixed(2)}
+              R$ {Number(currentSession.initial_amount).toFixed(2)}
             </div>
           </CardContent>
         </Card>
@@ -93,7 +176,7 @@ const CashierClose = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              R$ {systemData.totalSales.toFixed(2)}
+              R$ {Number(currentSession.total_sales).toFixed(2)}
             </div>
           </CardContent>
         </Card>
@@ -104,7 +187,7 @@ const CashierClose = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              R$ {systemData.expectedCash.toFixed(2)}
+              R$ {expectedCash.toFixed(2)}
             </div>
           </CardContent>
         </Card>
@@ -130,15 +213,15 @@ const CashierClose = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 border rounded-lg">
               <div className="text-sm text-muted-foreground">Dinheiro</div>
-              <div className="text-2xl font-bold">R$ {systemData.cashSales.toFixed(2)}</div>
+              <div className="text-2xl font-bold">R$ {Number(currentSession.cash_sales).toFixed(2)}</div>
             </div>
             <div className="p-4 border rounded-lg">
               <div className="text-sm text-muted-foreground">Cartão</div>
-              <div className="text-2xl font-bold">R$ {systemData.cardSales.toFixed(2)}</div>
+              <div className="text-2xl font-bold">R$ {Number(currentSession.card_sales).toFixed(2)}</div>
             </div>
             <div className="p-4 border rounded-lg">
               <div className="text-sm text-muted-foreground">PIX</div>
-              <div className="text-2xl font-bold">R$ {systemData.pixSales.toFixed(2)}</div>
+              <div className="text-2xl font-bold">R$ {Number(currentSession.pix_sales).toFixed(2)}</div>
             </div>
           </div>
         </CardContent>
@@ -168,7 +251,7 @@ const CashierClose = () => {
                   required
                 />
                 <p className="text-sm text-muted-foreground">
-                  Esperado: R$ {systemData.expectedCash.toFixed(2)}
+                  Esperado: R$ {Number(currentSession.cash_sales).toFixed(2)}
                 </p>
               </div>
               <div className="space-y-2">
@@ -184,7 +267,7 @@ const CashierClose = () => {
                   required
                 />
                 <p className="text-sm text-muted-foreground">
-                  Esperado: R$ {systemData.cardSales.toFixed(2)}
+                  Esperado: R$ {Number(currentSession.card_sales).toFixed(2)}
                 </p>
               </div>
               <div className="space-y-2">
@@ -200,7 +283,7 @@ const CashierClose = () => {
                   required
                 />
                 <p className="text-sm text-muted-foreground">
-                  Esperado: R$ {systemData.pixSales.toFixed(2)}
+                  Esperado: R$ {Number(currentSession.pix_sales).toFixed(2)}
                 </p>
               </div>
             </div>
@@ -223,11 +306,11 @@ const CashierClose = () => {
                       </span>
                     </div>
                     <div className="text-sm text-muted-foreground mt-1">
-                      Total contado: R$ {totalCounted.toFixed(2)} | Esperado: R$ {expectedTotal.toFixed(2)}
+                      Total contado: R$ {Number(totalCounted).toFixed(2)} | Esperado: R$ {Number(expectedTotal).toFixed(2)}
                     </div>
                   </div>
                   <div className={`text-2xl font-bold ${difference === 0 ? 'text-green-600' : difference > 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                    {difference !== 0 && (difference > 0 ? '+' : '')}R$ {difference.toFixed(2)}
+                    {difference !== 0 && (difference > 0 ? '+' : '')}R$ {Number(difference).toFixed(2)}
                   </div>
                 </div>
               </CardContent>
@@ -249,11 +332,20 @@ const CashierClose = () => {
                 variant="outline" 
                 type="button" 
                 onClick={() => navigate("/cashier")}
+                disabled={isSubmitting}
               >
                 Cancelar
               </Button>
-              <Button type="submit" className="bg-red-600 hover:bg-red-700">
-                <DollarSign className="h-4 w-4 mr-2" />
+              <Button 
+                type="submit" 
+                className="bg-red-600 hover:bg-red-700"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <DollarSign className="h-4 w-4 mr-2" />
+                )}
                 Fechar Caixa
               </Button>
             </div>

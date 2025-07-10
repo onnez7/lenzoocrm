@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,62 +27,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
-import { Plus, Search, MoreHorizontal, Edit, Trash2, Package } from "lucide-react";
-
-interface Category {
-  id: string;
-  name: string;
-  description?: string;
-  productsCount: number;
-  isActive: boolean;
-  createdAt: Date;
-}
-
-const mockCategories: Category[] = [
-  {
-    id: "1",
-    name: "Óculos de Sol",
-    description: "Óculos para proteção solar e estilo",
-    productsCount: 45,
-    isActive: true,
-    createdAt: new Date("2024-01-15")
-  },
-  {
-    id: "2",
-    name: "Armações",
-    description: "Armações para lentes de grau",
-    productsCount: 32,
-    isActive: true,
-    createdAt: new Date("2024-01-10")
-  },
-  {
-    id: "3",
-    name: "Lentes de Contato",
-    description: "Lentes de contato diversos tipos",
-    productsCount: 28,
-    isActive: true,
-    createdAt: new Date("2024-01-20")
-  },
-  {
-    id: "4",
-    name: "Acessórios",
-    description: "Cordões, estojos e acessórios diversos",
-    productsCount: 15,
-    isActive: true,
-    createdAt: new Date("2024-01-25")
-  },
-  {
-    id: "5",
-    name: "Óculos Infantil",
-    description: "Óculos especiais para crianças",
-    productsCount: 8,
-    isActive: false,
-    createdAt: new Date("2024-01-05")
-  }
-];
+import { Plus, Search, MoreHorizontal, Edit, Trash2, Package, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import categoryService, { Category } from "@/services/categoryService";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ProductCategories = () => {
-  const [categories, setCategories] = useState<Category[]>(mockCategories);
+  const { toast } = useToast();
+  const { user } = useAuth();
+  
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -91,34 +45,94 @@ const ProductCategories = () => {
     name: "",
     description: ""
   });
+  const [saving, setSaving] = useState(false);
+
+  const loadCategories = async () => {
+    try {
+      setLoading(true);
+      let categoriesData: Category[];
+      
+      if (user?.role === 'FRANCHISE_ADMIN') {
+        categoriesData = await categoryService.getFranchiseCategories();
+      } else {
+        categoriesData = await categoryService.getCategories();
+      }
+      
+      setCategories(categoriesData);
+    } catch (error: any) {
+      console.error('Erro ao carregar categorias:', error);
+      toast({
+        title: "Erro",
+        description: error.response?.data?.message || "Erro ao carregar categorias",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCategories();
+  }, [user?.role]);
 
   const filteredCategories = categories.filter(category =>
     category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (category.description?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
   );
 
-  const handleSubmit = () => {
-    if (editingCategory) {
-      setCategories(prev => prev.map(cat => 
-        cat.id === editingCategory.id 
-          ? { ...cat, name: formData.name, description: formData.description }
-          : cat
-      ));
-    } else {
-      const newCategory: Category = {
-        id: Date.now().toString(),
-        name: formData.name,
-        description: formData.description,
-        productsCount: 0,
-        isActive: true,
-        createdAt: new Date()
-      };
-      setCategories(prev => [...prev, newCategory]);
+  const handleSubmit = async () => {
+    if (!formData.name.trim()) {
+      toast({
+        title: "Erro",
+        description: "Nome é obrigatório.",
+        variant: "destructive",
+      });
+      return;
     }
-    
-    setFormData({ name: "", description: "" });
-    setEditingCategory(null);
-    setIsAddDialogOpen(false);
+
+    try {
+      setSaving(true);
+      
+      if (editingCategory) {
+        // Atualizar categoria
+        if (user?.role === 'FRANCHISE_ADMIN') {
+          await categoryService.updateFranchiseCategory(editingCategory.id, formData);
+        } else {
+          await categoryService.updateCategory(editingCategory.id, formData);
+        }
+        
+        toast({
+          title: "Sucesso",
+          description: "Categoria atualizada com sucesso!",
+        });
+      } else {
+        // Criar nova categoria
+        if (user?.role === 'FRANCHISE_ADMIN') {
+          await categoryService.createFranchiseCategory(formData);
+        } else {
+          await categoryService.createCategory(formData);
+        }
+        
+        toast({
+          title: "Sucesso",
+          description: "Categoria criada com sucesso!",
+        });
+      }
+      
+      setFormData({ name: "", description: "" });
+      setEditingCategory(null);
+      setIsAddDialogOpen(false);
+      loadCategories(); // Recarregar lista
+    } catch (error: any) {
+      console.error('Erro ao salvar categoria:', error);
+      toast({
+        title: "Erro",
+        description: error.response?.data?.message || "Erro ao salvar categoria",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleEdit = (category: Category) => {
@@ -130,14 +144,58 @@ const ProductCategories = () => {
     setIsAddDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    setCategories(prev => prev.filter(cat => cat.id !== id));
+  const handleDelete = async (id: number) => {
+    if (!confirm('Tem certeza que deseja excluir esta categoria?')) {
+      return;
+    }
+
+    try {
+      if (user?.role === 'FRANCHISE_ADMIN') {
+        await categoryService.deleteFranchiseCategory(id);
+      } else {
+        await categoryService.deleteCategory(id);
+      }
+      
+      toast({
+        title: "Sucesso",
+        description: "Categoria excluída com sucesso",
+      });
+      
+      loadCategories(); // Recarregar lista
+    } catch (error: any) {
+      console.error('Erro ao excluir categoria:', error);
+      toast({
+        title: "Erro",
+        description: error.response?.data?.message || "Erro ao excluir categoria",
+        variant: "destructive",
+      });
+    }
   };
 
-  const toggleStatus = (id: string) => {
-    setCategories(prev => prev.map(cat => 
-      cat.id === id ? { ...cat, isActive: !cat.isActive } : cat
-    ));
+  const toggleStatus = async (category: Category) => {
+    try {
+      const updateData = { is_active: !category.is_active };
+      
+      if (user?.role === 'FRANCHISE_ADMIN') {
+        await categoryService.updateFranchiseCategory(category.id, updateData);
+      } else {
+        await categoryService.updateCategory(category.id, updateData);
+      }
+      
+      toast({
+        title: "Sucesso",
+        description: `Categoria ${category.is_active ? 'desativada' : 'ativada'} com sucesso`,
+      });
+      
+      loadCategories(); // Recarregar lista
+    } catch (error: any) {
+      console.error('Erro ao alterar status da categoria:', error);
+      toast({
+        title: "Erro",
+        description: error.response?.data?.message || "Erro ao alterar status da categoria",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -191,10 +249,13 @@ const ProductCategories = () => {
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={saving}>
                 Cancelar
               </Button>
-              <Button onClick={handleSubmit} disabled={!formData.name.trim()}>
+              <Button onClick={handleSubmit} disabled={!formData.name.trim() || saving}>
+                {saving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
                 {editingCategory ? "Salvar" : "Criar"}
               </Button>
             </div>
@@ -223,76 +284,85 @@ const ProductCategories = () => {
             />
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead>Produtos</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Criado em</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredCategories.map((category) => (
-                <TableRow key={category.id}>
-                  <TableCell className="font-medium">{category.name}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {category.description || "—"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">
-                      {category.productsCount} produtos
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={category.isActive ? "default" : "secondary"}>
-                      {category.isActive ? "Ativa" : "Inativa"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {category.createdAt.toLocaleDateString('pt-BR')}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-background border shadow-lg">
-                        <DropdownMenuItem onClick={() => handleEdit(category)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => toggleStatus(category.id)}>
-                          {category.isActive ? "Desativar" : "Ativar"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className="text-red-600"
-                          onClick={() => handleDelete(category.id)}
-                          disabled={category.productsCount > 0}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-
-          {filteredCategories.length === 0 && (
-            <div className="text-center py-8">
-              <Package className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-2 text-sm font-semibold">Nenhuma categoria encontrada</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Tente ajustar os termos de busca ou adicione uma nova categoria.
-              </p>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <span className="ml-2">Carregando categorias...</span>
             </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>Produtos</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Criado em</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredCategories.map((category) => (
+                    <TableRow key={category.id}>
+                      <TableCell className="font-medium">{category.name}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {category.description || "—"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {category.products_count || 0} produtos
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={category.is_active ? "default" : "secondary"}>
+                          {category.is_active ? "Ativa" : "Inativa"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(category.created_at).toLocaleDateString('pt-BR')}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-background border shadow-lg">
+                            <DropdownMenuItem onClick={() => handleEdit(category)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => toggleStatus(category)}>
+                              {category.is_active ? "Desativar" : "Ativar"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="text-red-600"
+                              onClick={() => handleDelete(category.id)}
+                              disabled={(category.products_count || 0) > 0}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {filteredCategories.length === 0 && !loading && (
+                <div className="text-center py-8">
+                  <Package className="mx-auto h-12 w-12 text-muted-foreground" />
+                  <h3 className="mt-2 text-sm font-semibold">Nenhuma categoria encontrada</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Tente ajustar os termos de busca ou adicione uma nova categoria.
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

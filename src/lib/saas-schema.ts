@@ -1,4 +1,3 @@
-
 // SaaS Admin Types for Lenzoo System
 
 export interface Tenant {

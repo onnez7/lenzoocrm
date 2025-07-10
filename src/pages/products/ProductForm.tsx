@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,38 +13,140 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Save, Package } from "lucide-react";
+import { ArrowLeft, Save, Package, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-const mockCategories = [
-  { id: "1", name: "Óculos de Sol" },
-  { id: "2", name: "Armações" },
-  { id: "3", name: "Lentes de Contato" },
-  { id: "4", name: "Acessórios" },
-];
+import productService, { Product, CreateProductData } from "@/services/productService";
+import categoryService, { Category } from "@/services/categoryService";
+import brandService, { Brand } from "@/services/brandService";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ProductForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { toast } = useToast();
+  const { user } = useAuth();
   const isEdit = Boolean(id);
 
-  const [formData, setFormData] = useState({
+  const [loading, setLoading] = useState(false);
+  const [loadingProduct, setLoadingProduct] = useState(isEdit);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [loadingBrands, setLoadingBrands] = useState(true);
+  
+  const [formData, setFormData] = useState<CreateProductData>({
     name: "",
-    brand: "",
-    model: "",
-    sku: "",
-    barcode: "",
-    categoryId: "",
     description: "",
-    price: "",
-    cost: "",
-    minStock: "",
-    currentStock: "",
-    isActive: true,
+    price: 0,
+    cost: 0,
+    stock_quantity: 0,
+    min_stock: 0,
+    category_id: undefined,
+    brand_id: undefined,
+    sku: "",
+    model: "",
+    barcode: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Carregar categorias e marcas
+  useEffect(() => {
+    loadCategories();
+    loadBrands();
+  }, []);
+
+  // Carregar produto para edição
+  useEffect(() => {
+    if (isEdit && id) {
+      loadProduct();
+    }
+  }, [isEdit, id]);
+
+  const loadCategories = async () => {
+    try {
+      setLoadingCategories(true);
+      let categoriesData: Category[];
+      
+      if (user?.role === 'FRANCHISE_ADMIN') {
+        categoriesData = await categoryService.getFranchiseCategories();
+      } else {
+        categoriesData = await categoryService.getCategories();
+      }
+      
+      setCategories(categoriesData.filter(cat => cat.is_active));
+    } catch (error: any) {
+      console.error('Erro ao carregar categorias:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar categorias",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  const loadBrands = async () => {
+    try {
+      setLoadingBrands(true);
+      let brandsData: Brand[];
+      
+      if (user?.role === 'FRANCHISE_ADMIN') {
+        brandsData = await brandService.getFranchiseBrands();
+      } else {
+        brandsData = await brandService.getBrands();
+      }
+      
+      setBrands(brandsData.filter(brand => brand.is_active));
+    } catch (error: any) {
+      console.error('Erro ao carregar marcas:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar marcas",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingBrands(false);
+    }
+  };
+
+  const loadProduct = async () => {
+    try {
+      setLoadingProduct(true);
+      let product: Product;
+      
+      if (user?.role === 'FRANCHISE_ADMIN') {
+        product = await productService.getFranchiseProductById(parseInt(id));
+      } else {
+        product = await productService.getProductById(parseInt(id));
+      }
+      
+      setFormData({
+        name: product.name,
+        description: product.description || "",
+        price: product.price,
+        cost: product.cost || 0,
+        stock_quantity: product.stock_quantity,
+        min_stock: product.min_stock,
+        category_id: product.category_id || undefined,
+        brand_id: product.brand_id || undefined,
+        sku: product.sku || "",
+        model: product.model || "",
+        barcode: product.barcode || "",
+      });
+    } catch (error: any) {
+      console.error('Erro ao carregar produto:', error);
+      toast({
+        title: "Erro",
+        description: error.response?.data?.message || "Erro ao carregar produto",
+        variant: "destructive",
+      });
+      navigate("/products");
+    } finally {
+      setLoadingProduct(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validação básica
@@ -58,18 +159,69 @@ const ProductForm = () => {
       return;
     }
 
-    // Simular salvamento
-    toast({
-      title: isEdit ? "Produto atualizado!" : "Produto criado!",
-      description: `${formData.name} foi ${isEdit ? "atualizado" : "criado"} com sucesso.`,
-    });
+    try {
+      setLoading(true);
+      
+      if (isEdit && id) {
+        // Atualizar produto
+        if (user?.role === 'FRANCHISE_ADMIN') {
+          await productService.updateFranchiseProduct(parseInt(id), formData);
+        } else {
+          await productService.updateProduct(parseInt(id), formData);
+        }
+        
+        toast({
+          title: "Sucesso",
+          description: "Produto atualizado com sucesso!",
+        });
+      } else {
+        // Criar novo produto
+        if (user?.role === 'FRANCHISE_ADMIN') {
+          await productService.createFranchiseProduct(formData);
+        } else {
+          // Para SUPER_ADMIN, precisamos especificar a franquia
+          if (!formData.targetFranchiseId) {
+            toast({
+              title: "Erro",
+              description: "Franquia deve ser especificada para SUPER_ADMIN.",
+              variant: "destructive",
+            });
+            return;
+          }
+          await productService.createProduct(formData);
+        }
+        
+        toast({
+          title: "Sucesso",
+          description: "Produto criado com sucesso!",
+        });
+      }
 
-    navigate("/products");
+      navigate("/products");
+    } catch (error: any) {
+      console.error('Erro ao salvar produto:', error);
+      toast({
+        title: "Erro",
+        description: error.response?.data?.message || "Erro ao salvar produto",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleInputChange = (field: string, value: string | boolean) => {
+  const handleInputChange = (field: string, value: string | number | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  if (loadingProduct || loadingCategories || loadingBrands) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Carregando...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -111,16 +263,7 @@ const ProductForm = () => {
                   value={formData.name}
                   onChange={(e) => handleInputChange("name", e.target.value)}
                   placeholder="Ex: Óculos Ray-Ban Aviador"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="brand">Marca</Label>
-                <Input
-                  id="brand"
-                  value={formData.brand}
-                  onChange={(e) => handleInputChange("brand", e.target.value)}
-                  placeholder="Ex: Ray-Ban"
+                  required
                 />
               </div>
 
@@ -136,14 +279,36 @@ const ProductForm = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="category">Categoria</Label>
-                <Select value={formData.categoryId} onValueChange={(value) => handleInputChange("categoryId", value)}>
+                <Select 
+                  value={formData.category_id?.toString() || ""} 
+                  onValueChange={(value) => handleInputChange("category_id", value ? parseInt(value) : undefined)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione uma categoria" />
                   </SelectTrigger>
-                  <SelectContent className="bg-background border shadow-lg">
-                    {mockCategories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id.toString()}>
                         {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="brand">Marca</Label>
+                <Select 
+                  value={formData.brand_id?.toString() || ""} 
+                  onValueChange={(value) => handleInputChange("brand_id", value ? parseInt(value) : undefined)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma marca" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {brands.map((brand) => (
+                      <SelectItem key={brand.id} value={brand.id.toString()}>
+                        {brand.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -166,7 +331,7 @@ const ProductForm = () => {
                   id="barcode"
                   value={formData.barcode}
                   onChange={(e) => handleInputChange("barcode", e.target.value)}
-                  placeholder="Ex: 123456789012"
+                  placeholder="Ex: 7891234567890"
                 />
               </div>
             </div>
@@ -189,9 +354,11 @@ const ProductForm = () => {
                   id="price"
                   type="number"
                   step="0.01"
+                  min="0"
                   value={formData.price}
-                  onChange={(e) => handleInputChange("price", e.target.value)}
+                  onChange={(e) => handleInputChange("price", parseFloat(e.target.value) || 0)}
                   placeholder="0.00"
+                  required
                 />
               </div>
 
@@ -201,42 +368,36 @@ const ProductForm = () => {
                   id="cost"
                   type="number"
                   step="0.01"
+                  min="0"
                   value={formData.cost}
-                  onChange={(e) => handleInputChange("cost", e.target.value)}
+                  onChange={(e) => handleInputChange("cost", parseFloat(e.target.value) || 0)}
                   placeholder="0.00"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="currentStock">Estoque Atual</Label>
+                <Label htmlFor="stock_quantity">Estoque Atual</Label>
                 <Input
-                  id="currentStock"
+                  id="stock_quantity"
                   type="number"
-                  value={formData.currentStock}
-                  onChange={(e) => handleInputChange("currentStock", e.target.value)}
+                  min="0"
+                  value={formData.stock_quantity}
+                  onChange={(e) => handleInputChange("stock_quantity", parseInt(e.target.value) || 0)}
                   placeholder="0"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="minStock">Estoque Mínimo</Label>
+                <Label htmlFor="min_stock">Estoque Mínimo</Label>
                 <Input
-                  id="minStock"
+                  id="min_stock"
                   type="number"
-                  value={formData.minStock}
-                  onChange={(e) => handleInputChange("minStock", e.target.value)}
+                  min="0"
+                  value={formData.min_stock}
+                  onChange={(e) => handleInputChange("min_stock", parseInt(e.target.value) || 0)}
                   placeholder="0"
                 />
               </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="isActive"
-                checked={formData.isActive}
-                onCheckedChange={(checked) => handleInputChange("isActive", checked)}
-              />
-              <Label htmlFor="isActive">Produto ativo</Label>
             </div>
 
             <div className="flex justify-end space-x-2">
@@ -244,11 +405,16 @@ const ProductForm = () => {
                 type="button"
                 variant="outline"
                 onClick={() => navigate("/products")}
+                disabled={loading}
               >
                 Cancelar
               </Button>
-              <Button type="submit">
-                <Save className="mr-2 h-4 w-4" />
+              <Button type="submit" disabled={loading}>
+                {loading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
                 {isEdit ? "Atualizar" : "Salvar"} Produto
               </Button>
             </div>

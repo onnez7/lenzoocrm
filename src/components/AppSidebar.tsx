@@ -34,15 +34,8 @@ import {
 } from "@/components/ui/collapsible";
 import { NavUser } from "@/components/nav-user";
 import Logo  from "@/components/logo";
+import { useAuth } from "@/contexts/AuthContext";
 
-
-const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-};
 
 const navigationItems = [
   {
@@ -56,7 +49,6 @@ const navigationItems = [
     icon: IconUser,
     subItems: [
       { title: "Listar Clientes", url: "/clients" },
-      { title: "Novo Cliente", url: "/clients/new" },
     ],
   },
   {
@@ -65,8 +57,9 @@ const navigationItems = [
     icon: IconShoppingCart,
     subItems: [
       { title: "Listar Produtos", url: "/products" },
-      { title: "Novo Produto", url: "/products/new" },
       { title: "Categorias", url: "/products/categories" },
+      { title: "Marcas", url: "/products/brands" },
+      { title: "Kits", url: "/products/kits" },
     ],
   },
   {
@@ -85,7 +78,6 @@ const navigationItems = [
     icon: IconClipboardList,
     subItems: [
       { title: "Listar OS", url: "/orders" },
-      { title: "Nova OS", url: "/orders/new" },
     ],
   },
   {
@@ -94,8 +86,6 @@ const navigationItems = [
     icon: IconCurrencyDollar,
     subItems: [
       { title: "Controle", url: "/cashier" },
-      { title: "Abrir Caixa", url: "/cashier/open" },
-      { title: "Fechar Caixa", url: "/cashier/close" },
       { title: "Histórico", url: "/cashier/history" },
     ],
   },
@@ -106,7 +96,6 @@ const navigationItems = [
     subItems: [
       { title: "Listar", url: "/appointments" },
       { title: "Calendário", url: "/appointments/calendar" },
-      { title: "Novo", url: "/appointments/new" },
     ],
   },
   {
@@ -155,11 +144,6 @@ const navigationItems = [
       { title: "Log de Atividade", url: "/settings/activity-log" },
     ],
   },
-  {
-    title: "adiministraçao matriz",
-    url: "/admin",
-    icon: IconTablePlus,
-  },
 ];
 
 export function AppSidebar() {
@@ -167,6 +151,7 @@ export function AppSidebar() {
   const location = useLocation();
   const currentPath = location.pathname;
   const [openGroups, setOpenGroups] = useState<string[]>([]);
+  const { user } = useAuth();
 
   const collapsed = state === "collapsed";
 
@@ -267,7 +252,11 @@ export function AppSidebar() {
           </SidebarGroup>
         </SidebarContent>
         <SidebarFooter>
-          <NavUser user={data.user} />
+          <NavUser user={{
+            name: user?.name || "",
+            email: user?.email || "",
+            avatar: ""
+          }} />
         </SidebarFooter>
       </Sidebar>
     );

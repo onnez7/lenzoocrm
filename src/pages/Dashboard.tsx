@@ -32,6 +32,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 
+
 const salesData = [
   { month: "Jan", sales: 12000, orders: 45 },
   { month: "Fev", sales: 15000, orders: 52 },
@@ -39,6 +40,12 @@ const salesData = [
   { month: "Abr", sales: 14000, orders: 48 },
   { month: "Mai", sales: 22000, orders: 75 },
   { month: "Jun", sales: 25000, orders: 82 },
+  { month: "Jul", sales: 20000, orders: 68 },
+  { month: "Ago", sales: 18000, orders: 57 },
+  { month: "Set", sales: 16000, orders: 50 },
+  { month: "Out", sales: 19000, orders: 63 },
+  { month: "Nov", sales: 21000, orders: 71 },
+  { month: "Dez", sales: 17000, orders: 55 },
 ];
 
 const categoryData = [
@@ -60,13 +67,6 @@ const lowStockProducts = [
   { name: "Armação Ray-Ban", current: 2, min: 5 },
   { name: "Lente Antirreflexo", current: 8, min: 15 },
 ];
-
-const salesConfig = {
-  orders: {
-    label: "orders",
-    color: "var(--chart-1)",
-  },
-};
 
 
 const Dashboard = () => {
@@ -144,7 +144,6 @@ const Dashboard = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={salesConfig}>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart accessibilityLayer data={salesData}>
                   <CartesianGrid vertical={false} />
@@ -159,7 +158,6 @@ const Dashboard = () => {
                   <Bar dataKey="sales" fill="#3b82f6" radius={8} />
                 </BarChart>
               </ResponsiveContainer>
-            </ChartContainer>
           </CardContent>
         </Card>
 

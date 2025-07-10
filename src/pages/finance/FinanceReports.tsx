@@ -1,7 +1,8 @@
-
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { 
   Select,
   SelectContent,
@@ -9,6 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { 
   BarChart, 
   Bar, 
@@ -30,43 +39,298 @@ import {
   DollarSign, 
   Calendar,
   FileText,
-  Download
+  Download,
+  Users,
+  ShoppingCart,
+  CreditCard,
+  Wallet,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Loader2
 } from "lucide-react";
+import { api } from "@/config/api";
+import { useAuth } from "@/contexts/AuthContext";
 
-const monthlyData = [
-  { month: 'Jan', receitas: 15000, despesas: 8000, lucro: 7000 },
-  { month: 'Fev', receitas: 18000, despesas: 9000, lucro: 9000 },
-  { month: 'Mar', receitas: 22000, despesas: 10500, lucro: 11500 },
-  { month: 'Abr', receitas: 19000, despesas: 9500, lucro: 9500 },
-  { month: 'Mai', receitas: 25000, despesas: 12000, lucro: 13000 },
-  { month: 'Jun', receitas: 28000, despesas: 13000, lucro: 15000 },
-];
+interface FinancialData {
+  totalReceivables: number;
+  totalPayables: number;
+  totalSales: number;
+  totalSalaries: number;
+  totalSangrias: number;
+  netProfit: number;
+  monthlyData: any[];
+  paymentMethods: any[];
+  categoryData: any[];
+}
 
-const categoryData = [
-  { name: 'Óculos de Sol', value: 35, color: '#8884d8' },
-  { name: 'Armações', value: 30, color: '#82ca9d' },
-  { name: 'Lentes', value: 20, color: '#ffc658' },
-  { name: 'Consultas', value: 10, color: '#ff7c7c' },
-  { name: 'Acessórios', value: 5, color: '#8dd1e1' },
-];
-
-const paymentMethodData = [
-  { method: 'Cartão de Crédito', percentage: 45, amount: 67500 },
-  { method: 'Dinheiro', percentage: 25, amount: 37500 },
-  { method: 'PIX', percentage: 20, amount: 30000 },
-  { method: 'Cartão de Débito', percentage: 10, amount: 15000 },
-];
+interface PaymentHistory {
+  id: number;
+  description: string;
+  amount: number;
+  type: 'receivable' | 'payable' | 'salary' | 'sangria';
+  date: string;
+  status: string;
+  payment_method: string;
+  category: string;
+}
 
 const FinanceReports = () => {
-  const currentMonth = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-  
-  const totalReceitas = monthlyData[monthlyData.length - 1].receitas;
-  const totalDespesas = monthlyData[monthlyData.length - 1].despesas;
-  const totalLucro = totalReceitas - totalDespesas;
-  const margemLucro = ((totalLucro / totalReceitas) * 100).toFixed(1);
+  const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+  const [financialData, setFinancialData] = useState<FinancialData | null>(null);
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
+  const [dateFilter, setDateFilter] = useState('6months');
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const previousReceitas = monthlyData[monthlyData.length - 2].receitas;
-  const crescimentoReceitas = (((totalReceitas - previousReceitas) / previousReceitas) * 100).toFixed(1);
+  useEffect(() => {
+    loadFinancialData();
+  }, [dateFilter]);
+
+  const loadFinancialData = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Carregar dados financeiros
+      const [financeStatsRes, monthlyRes, categoriesRes, paymentMethodsRes] = await Promise.all([
+        api.get('/finance/stats'),
+        api.get('/finance/monthly'),
+        api.get('/finance/categories'),
+        api.get('/finance/payment-methods')
+      ]);
+
+      const financeStats = financeStatsRes.data;
+      const monthlyData = monthlyRes.data;
+      const categories = categoriesRes.data;
+      const paymentMethods = paymentMethodsRes.data;
+
+      // Preparar dados para o componente
+      const categoryData = [
+        ...categories.receivables.map((cat: any) => ({
+          name: cat.category,
+          value: Math.round((cat.total_amount / financeStats.summary.totalReceitas) * 100),
+          color: '#8884d8'
+        })),
+        ...categories.payables.map((cat: any) => ({
+          name: cat.category,
+          value: Math.round((cat.total_amount / financeStats.summary.totalDespesas) * 100),
+          color: '#ff7c7c'
+        }))
+      ];
+
+      const paymentMethodsData = [
+        ...paymentMethods.receivables.map((method: any) => ({
+          method: method.payment_method,
+          percentage: Math.round((method.total_amount / financeStats.summary.totalReceitas) * 100),
+          amount: method.total_amount
+        })),
+        ...paymentMethods.payables.map((method: any) => ({
+          method: method.payment_method,
+          percentage: Math.round((method.total_amount / financeStats.summary.totalDespesas) * 100),
+          amount: method.total_amount
+        }))
+      ];
+
+      setFinancialData({
+        totalReceivables: financeStats.summary.totalReceitas,
+        totalPayables: financeStats.summary.totalDespesas,
+        totalSales: financeStats.sales.completed_amount || 0,
+        totalSalaries: financeStats.salaries.total_salaries || 0,
+        totalSangrias: financeStats.sangrias.total_amount || 0,
+        netProfit: financeStats.summary.lucroLiquido,
+        monthlyData,
+        paymentMethods: paymentMethodsData,
+        categoryData
+      });
+
+      // Carregar histórico de pagamentos
+      await loadPaymentHistory();
+
+    } catch (error) {
+      console.error('Erro ao carregar dados financeiros:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadPaymentHistory = async () => {
+    try {
+      const [receivablesRes, payablesRes, employeesRes, sangriasRes] = await Promise.all([
+        api.get('/receivables'),
+        api.get('/payables'),
+        api.get('/employees'),
+        api.get('/cashier/sangrias')
+      ]);
+
+      const history: PaymentHistory[] = [];
+
+      // Adicionar contas a receber pagas
+      receivablesRes.data
+        .filter((r: any) => r.status === 'paid')
+        .forEach((r: any) => {
+          history.push({
+            id: r.id,
+            description: r.description,
+            amount: r.amount,
+            type: 'receivable',
+            date: r.payment_date || r.created_at,
+            status: 'Pago',
+            payment_method: r.payment_method,
+            category: r.category
+          });
+        });
+
+      // Adicionar contas a pagar pagas
+      payablesRes.data
+        .filter((p: any) => p.status === 'paid')
+        .forEach((p: any) => {
+          history.push({
+            id: p.id,
+            description: p.description,
+            amount: -p.amount, // Negativo pois é despesa
+            type: 'payable',
+            date: p.payment_date || p.created_at,
+            status: 'Pago',
+            payment_method: p.payment_method,
+            category: p.category
+          });
+        });
+
+      // Adicionar salários
+      employeesRes.data.forEach((emp: any) => {
+        if (emp.salary) {
+          history.push({
+            id: emp.id,
+            description: `Salário - ${emp.name}`,
+            amount: -emp.salary, // Negativo pois é despesa
+            type: 'salary',
+            date: new Date().toISOString().split('T')[0], // Data atual
+            status: 'Pendente',
+            payment_method: 'bank_transfer',
+            category: 'Salários'
+          });
+        }
+      });
+
+      // Adicionar sangrias
+      sangriasRes.data.forEach((sangria: any) => {
+        history.push({
+          id: sangria.id,
+          description: `Sangria - ${sangria.reason}`,
+          amount: -sangria.amount, // Negativo pois é saída
+          type: 'sangria',
+          date: sangria.created_at,
+          status: 'Realizada',
+          payment_method: 'cash',
+          category: 'Sangria'
+        });
+      });
+
+      // Ordenar por data
+      history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setPaymentHistory(history);
+
+    } catch (error) {
+      console.error('Erro ao carregar histórico:', error);
+    }
+  };
+
+  const generateMonthlyData = (receivables: any, payables: any, sales: any, salaries: number, sangrias: any[]) => {
+    const months = [];
+    const today = new Date();
+    
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const monthName = date.toLocaleDateString('pt-BR', { month: 'short' });
+      
+      // Dados simulados por mês (em produção, você filtraria por data)
+      const receitas = Math.random() * 20000 + 10000;
+      const despesas = Math.random() * 15000 + 8000;
+      const lucro = receitas - despesas;
+      
+      months.push({
+        month: monthName,
+        receitas: Math.round(receitas),
+        despesas: Math.round(despesas),
+        lucro: Math.round(lucro)
+      });
+    }
+    
+    return months;
+  };
+
+  const generatePaymentMethodsData = (receivables: any, payables: any, sales: any) => {
+    return [
+      { method: 'Cartão de Crédito', percentage: 45, amount: 67500 },
+      { method: 'Dinheiro', percentage: 25, amount: 37500 },
+      { method: 'PIX', percentage: 20, amount: 30000 },
+      { method: 'Transferência', percentage: 10, amount: 15000 },
+    ];
+  };
+
+  const generateCategoryData = (receivables: any, payables: any) => {
+    return [
+      { name: 'Vendas', value: 35, color: '#8884d8' },
+      { name: 'Serviços', value: 25, color: '#82ca9d' },
+      { name: 'Fornecedores', value: 20, color: '#ffc658' },
+      { name: 'Salários', value: 15, color: '#ff7c7c' },
+      { name: 'Outros', value: 5, color: '#8dd1e1' },
+    ];
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR');
+  };
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'receivable': return <TrendingUp className="h-4 w-4 text-green-600" />;
+      case 'payable': return <TrendingDown className="h-4 w-4 text-red-600" />;
+      case 'salary': return <Users className="h-4 w-4 text-blue-600" />;
+      case 'sangria': return <Wallet className="h-4 w-4 text-orange-600" />;
+      default: return <DollarSign className="h-4 w-4" />;
+    }
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'receivable': return 'Receita';
+      case 'payable': return 'Despesa';
+      case 'salary': return 'Salário';
+      case 'sangria': return 'Sangria';
+      default: return 'Outro';
+    }
+  };
+
+  const filteredHistory = paymentHistory.filter(item =>
+    item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Carregando relatórios financeiros...</span>
+      </div>
+    );
+  }
+
+  if (!financialData) {
+    return (
+      <div className="text-center py-8">
+        <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+        <p className="text-muted-foreground">Erro ao carregar dados financeiros</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -74,12 +338,12 @@ const FinanceReports = () => {
         <div>
           <h1 className="text-3xl font-bold">Relatórios Financeiros</h1>
           <p className="text-muted-foreground">
-            Análises e insights do desempenho financeiro
+            Análises completas do desempenho financeiro da franquia
           </p>
         </div>
         
         <div className="flex gap-2">
-          <Select defaultValue="6months">
+          <Select value={dateFilter} onValueChange={setDateFilter}>
             <SelectTrigger className="w-40">
               <Calendar className="mr-2 h-4 w-4" />
               <SelectValue />
@@ -103,31 +367,30 @@ const FinanceReports = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-600" />
+            <CardTitle className="text-sm font-medium">Receitas Totais</CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              R$ {totalReceitas.toLocaleString('pt-BR')}
+            <div className="text-2xl font-bold text-green-600">
+              {formatCurrency(financialData.totalReceivables + financialData.totalSales)}
             </div>
-            <div className="flex items-center text-xs text-green-600">
-              <TrendingUp className="mr-1 h-3 w-3" />
-              +{crescimentoReceitas}% vs mês anterior
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Contas recebidas + Vendas
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Despesas</CardTitle>
+            <CardTitle className="text-sm font-medium">Despesas Totais</CardTitle>
             <TrendingDown className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              R$ {totalDespesas.toLocaleString('pt-BR')}
+            <div className="text-2xl font-bold text-red-600">
+              {formatCurrency(financialData.totalPayables + financialData.totalSalaries + financialData.totalSangrias)}
             </div>
             <p className="text-xs text-muted-foreground">
-              {currentMonth}
+              Contas pagas + Salários + Sangrias
             </p>
           </CardContent>
         </Card>
@@ -135,29 +398,29 @@ const FinanceReports = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Lucro Líquido</CardTitle>
-            <TrendingUp className="h-4 w-4 text-blue-600" />
+            <DollarSign className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              R$ {totalLucro.toLocaleString('pt-BR')}
+            <div className={`text-2xl font-bold ${financialData.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {formatCurrency(financialData.netProfit)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Margem: {margemLucro}%
+              {financialData.netProfit >= 0 ? 'Lucro' : 'Prejuízo'}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
-            <FileText className="h-4 w-4 text-purple-600" />
+            <CardTitle className="text-sm font-medium">Salários</CardTitle>
+            <Users className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              R$ 287,50
+            <div className="text-2xl font-bold text-purple-600">
+              {formatCurrency(financialData.totalSalaries)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Por venda
+              Total de salários
             </p>
           </CardContent>
         </Card>
@@ -173,12 +436,12 @@ const FinanceReports = () => {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={monthlyData}>
+            <BarChart data={financialData.monthlyData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />
               <Tooltip 
-                formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR')}`, '']}
+                formatter={(value) => [formatCurrency(Number(value)), '']}
                 labelFormatter={(label) => `Mês: ${label}`}
               />
               <Legend />
@@ -194,16 +457,16 @@ const FinanceReports = () => {
         {/* Vendas por Categoria */}
         <Card>
           <CardHeader>
-            <CardTitle>Vendas por Categoria</CardTitle>
+            <CardTitle>Distribuição por Categoria</CardTitle>
             <CardDescription>
-              Distribuição percentual das vendas
+              Percentual de receitas e despesas por categoria
             </CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={categoryData}
+                  data={financialData.categoryData}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
@@ -212,7 +475,7 @@ const FinanceReports = () => {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {categoryData.map((entry, index) => (
+                  {financialData.categoryData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
@@ -232,14 +495,14 @@ const FinanceReports = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {paymentMethodData.map((method, index) => (
+              {financialData.paymentMethods.map((method, index) => (
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <div className="font-medium">{method.method}</div>
                     <Badge variant="secondary">{method.percentage}%</Badge>
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    R$ {method.amount.toLocaleString('pt-BR')}
+                    {formatCurrency(method.amount)}
                   </div>
                 </div>
               ))}
@@ -248,33 +511,80 @@ const FinanceReports = () => {
         </Card>
       </div>
 
-      {/* Evolução do Lucro */}
+      {/* Histórico de Pagamentos */}
       <Card>
         <CardHeader>
-          <CardTitle>Evolução do Lucro</CardTitle>
+          <CardTitle>Histórico de Pagamentos</CardTitle>
           <CardDescription>
-            Tendência de crescimento mensal
+            Registro completo de todas as movimentações financeiras
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip 
-                formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR')}`, 'Lucro']}
-                labelFormatter={(label) => `Mês: ${label}`}
+          <div className="flex gap-4 mb-4">
+            <div className="flex-1">
+              <Input
+                placeholder="Buscar por descrição ou categoria..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
               />
-              <Line 
-                type="monotone" 
-                dataKey="lucro" 
-                stroke="#3b82f6" 
-                strokeWidth={3}
-                dot={{ fill: '#3b82f6', strokeWidth: 2, r: 6 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+            </div>
+          </div>
+
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead>Categoria</TableHead>
+                <TableHead>Valor</TableHead>
+                <TableHead>Método</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Tipo</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredHistory.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8">
+                    <div className="flex flex-col items-center">
+                      <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-muted-foreground">Nenhuma movimentação encontrada</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredHistory.map((item) => (
+                  <TableRow key={`${item.type}-${item.id}`}>
+                    <TableCell>{formatDate(item.date)}</TableCell>
+                    <TableCell className="font-medium">{item.description}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{item.category}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`font-medium ${item.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatCurrency(Math.abs(item.amount))}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{item.payment_method}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={item.status === 'Pago' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                        {item.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {getTypeIcon(item.type)}
+                        <span className="text-sm">{getTypeLabel(item.type)}</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>

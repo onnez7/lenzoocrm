@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,19 +20,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Save, Plus, Trash2, Package2 } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, Package2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-// Mock data para produtos disponíveis
-const mockProducts = [
-  { id: "1", name: "Óculos Ray-Ban Aviador", sku: "RB3025-001", price: 200.00 },
-  { id: "2", name: "Armação Oakley OX8156", sku: "OAK-8156-02", price: 180.00 },
-  { id: "3", name: "Lente de Contato Acuvue", sku: "JJ-OASYS-30", price: 45.00 },
-  { id: "4", name: "Óculos Prada PR 17WS", sku: "PR-17WS-1AB", price: 400.00 },
-];
+import productService, { Product } from "@/services/productService";
+import stockService from "@/services/stockService";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface StockEntryItem {
-  productId: string;
+  productId: number;
   productName: string;
   sku: string;
   quantity: number;
@@ -44,6 +38,11 @@ interface StockEntryItem {
 const StockEntry = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const [entryData, setEntryData] = useState({
     supplier: "",
@@ -59,6 +58,35 @@ const StockEntry = () => {
     unitCost: "",
   });
 
+  // Carregar produtos
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
+  const loadProducts = async () => {
+    try {
+      setLoadingProducts(true);
+      let response;
+      
+      if (user?.role === 'FRANCHISE_ADMIN') {
+        response = await productService.getFranchiseProducts(1, 1000, "");
+      } else {
+        response = await productService.getProducts(1, 1000, "");
+      }
+      
+      setProducts(response.products.filter(p => p.status === "active"));
+    } catch (error: any) {
+      console.error('Erro ao carregar produtos:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar produtos",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
   const handleAddItem = () => {
     if (!newItem.productId || !newItem.quantity || !newItem.unitCost) {
       toast({
@@ -69,7 +97,7 @@ const StockEntry = () => {
       return;
     }
 
-    const product = mockProducts.find(p => p.id === newItem.productId);
+    const product = products.find(p => p.id.toString() === newItem.productId);
     if (!product) return;
 
     const quantity = parseInt(newItem.quantity);
@@ -79,7 +107,7 @@ const StockEntry = () => {
     const item: StockEntryItem = {
       productId: product.id,
       productName: product.name,
-      sku: product.sku,
+      sku: product.sku || "",
       quantity,
       unitCost,
       totalCost,
@@ -93,7 +121,7 @@ const StockEntry = () => {
     setEntryItems(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (entryItems.length === 0) {
@@ -105,16 +133,51 @@ const StockEntry = () => {
       return;
     }
 
-    // Simular salvamento
-    toast({
-      title: "Entrada registrada!",
-      description: `Entrada de estoque com ${entryItems.length} itens foi registrada com sucesso.`,
-    });
+    try {
+      setSaving(true);
 
-    navigate("/stock");
+      // Registrar cada item como uma movimentação separada
+      for (const item of entryItems) {
+        await stockService.registerMovement({
+          product_id: item.productId,
+          movement_type: 'entry',
+          quantity: item.quantity,
+          unit_cost: item.unitCost,
+          reason: `Entrada de estoque - ${entryData.invoiceNumber ? `NF: ${entryData.invoiceNumber}` : 'Entrada manual'}`,
+          reference_number: entryData.invoiceNumber,
+          supplier: entryData.supplier,
+          notes: entryData.notes
+        });
+      }
+
+      toast({
+        title: "Entrada registrada!",
+        description: `Entrada de estoque com ${entryItems.length} itens foi registrada com sucesso.`,
+      });
+
+      navigate("/stock");
+    } catch (error: any) {
+      console.error('Erro ao registrar entrada:', error);
+      toast({
+        title: "Erro",
+        description: error.response?.data?.message || "Erro ao registrar entrada de estoque",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const totalValue = entryItems.reduce((sum, item) => sum + item.totalCost, 0);
+
+  if (loadingProducts) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Carregando produtos...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -212,9 +275,9 @@ const StockEntry = () => {
                     <SelectValue placeholder="Selecione um produto" />
                   </SelectTrigger>
                   <SelectContent className="bg-background border shadow-lg">
-                    {mockProducts.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} ({product.sku})
+                    {products.map((product) => (
+                      <SelectItem key={product.id} value={product.id.toString()}>
+                        {product.name} ({product.sku || 'Sem SKU'})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -276,7 +339,7 @@ const StockEntry = () => {
                   {entryItems.map((item, index) => (
                     <TableRow key={index}>
                       <TableCell className="font-medium">{item.productName}</TableCell>
-                      <TableCell className="font-mono">{item.sku}</TableCell>
+                      <TableCell className="font-mono">{item.sku || "—"}</TableCell>
                       <TableCell>{item.quantity}</TableCell>
                       <TableCell>R$ {item.unitCost.toFixed(2)}</TableCell>
                       <TableCell>R$ {item.totalCost.toFixed(2)}</TableCell>
@@ -304,11 +367,16 @@ const StockEntry = () => {
             type="button"
             variant="outline"
             onClick={() => navigate("/stock")}
+            disabled={saving}
           >
             Cancelar
           </Button>
-          <Button type="submit">
-            <Save className="mr-2 h-4 w-4" />
+          <Button type="submit" disabled={saving || entryItems.length === 0}>
+            {saving ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
             Registrar Entrada
           </Button>
         </div>

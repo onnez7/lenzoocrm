@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,54 +25,8 @@ import {
   MessageSquare
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-interface UserSettings {
-  theme: "light" | "dark" | "system";
-  language: string;
-  notifications: {
-    email: boolean;
-    push: boolean;
-    sms: boolean;
-    appointments: boolean;
-    sales: boolean;
-    stock: boolean;
-    system: boolean;
-  };
-  privacy: {
-    profileVisible: boolean;
-    activityVisible: boolean;
-    onlineStatus: boolean;
-  };
-  security: {
-    twoFactorEnabled: boolean;
-    sessionTimeout: number;
-    loginNotifications: boolean;
-  };
-}
-
-const initialSettings: UserSettings = {
-  theme: "system",
-  language: "pt-BR",
-  notifications: {
-    email: true,
-    push: true,
-    sms: false,
-    appointments: true,
-    sales: true,
-    stock: true,
-    system: false
-  },
-  privacy: {
-    profileVisible: true,
-    activityVisible: false,
-    onlineStatus: true
-  },
-  security: {
-    twoFactorEnabled: false,
-    sessionTimeout: 30,
-    loginNotifications: true
-  }
-};
+import { useAuth } from "@/contexts/AuthContext";
+import { userService, UserSettings } from "@/services/userService";
 
 const languages = [
   { value: "pt-BR", label: "Português (Brasil)" },
@@ -88,24 +41,76 @@ const themes = [
 ];
 
 const UserSettings = () => {
-  const [settings, setSettings] = useState<UserSettings>(initialSettings);
-  const [isLoading, setIsLoading] = useState(false);
+  const { token } = useAuth();
+  const [settings, setSettings] = useState<UserSettings | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const { toast } = useToast();
 
+  // Carregar configurações do usuário
+  useEffect(() => {
+    const loadSettings = async () => {
+      if (!token) return;
+      
+      try {
+        const userSettings = await userService.getUserSettings(token);
+        setSettings(userSettings);
+      } catch (error) {
+        // Se não existir configurações, usar padrão
+        setSettings({
+          theme: "system",
+          language: "pt-BR",
+          notifications: {
+            email: true,
+            push: true,
+            sms: false,
+            appointments: true,
+            sales: true,
+            stock: true,
+            system: false
+          },
+          privacy: {
+            profileVisible: true,
+            activityVisible: false,
+            onlineStatus: true
+          },
+          security: {
+            twoFactorEnabled: false,
+            sessionTimeout: 30,
+            loginNotifications: true
+          }
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, [token]);
+
   const handleSave = async () => {
-    setIsLoading(true);
+    if (!token || !settings) return;
     
-    // Simular salvamento
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    setIsSaving(true);
     
-    setIsLoading(false);
-    toast({
-      title: "Configurações salvas",
-      description: "Suas preferências foram atualizadas com sucesso.",
-    });
+    try {
+      await userService.updateUserSettings(settings, token);
+      toast({
+        title: "Configurações salvas",
+        description: "Suas preferências foram atualizadas com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar configurações",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
@@ -129,51 +134,89 @@ const UserSettings = () => {
       return;
     }
 
-    setIsLoading(true);
+    if (!token) return;
+
+    setIsSaving(true);
     
-    // Simular alteração de senha
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setIsLoading(false);
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    
-    toast({
-      title: "Senha alterada",
-      description: "Sua senha foi atualizada com sucesso.",
-    });
+    try {
+      await userService.changePassword({
+        currentPassword,
+        newPassword
+      }, token);
+      
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      
+      toast({
+        title: "Senha alterada",
+        description: "Sua senha foi atualizada com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao alterar senha. Verifique sua senha atual.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const updateNotificationSetting = (key: keyof UserSettings['notifications'], value: boolean) => {
+    if (!settings) return;
+    
     setSettings(prev => ({
-      ...prev,
+      ...prev!,
       notifications: {
-        ...prev.notifications,
+        ...prev!.notifications,
         [key]: value
       }
     }));
   };
 
   const updatePrivacySetting = (key: keyof UserSettings['privacy'], value: boolean) => {
+    if (!settings) return;
+    
     setSettings(prev => ({
-      ...prev,
+      ...prev!,
       privacy: {
-        ...prev.privacy,
+        ...prev!.privacy,
         [key]: value
       }
     }));
   };
 
   const updateSecuritySetting = (key: keyof UserSettings['security'], value: boolean | number) => {
+    if (!settings) return;
+    
     setSettings(prev => ({
-      ...prev,
+      ...prev!,
       security: {
-        ...prev.security,
+        ...prev!.security,
         [key]: value
       }
     }));
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p>Carregando configurações...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!settings) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p>Erro ao carregar configurações</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -199,7 +242,7 @@ const UserSettings = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="theme">Tema</Label>
-              <Select value={settings.theme} onValueChange={(value: any) => setSettings(prev => ({ ...prev, theme: value }))}>
+              <Select value={settings.theme} onValueChange={(value: any) => setSettings(prev => ({ ...prev!, theme: value }))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -214,7 +257,7 @@ const UserSettings = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="language">Idioma</Label>
-              <Select value={settings.language} onValueChange={(value) => setSettings(prev => ({ ...prev, language: value }))}>
+              <Select value={settings.language} onValueChange={(value) => setSettings(prev => ({ ...prev!, language: value }))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -439,7 +482,7 @@ const UserSettings = () => {
                   />
                 </div>
               </div>
-              <Button type="submit" variant="outline" disabled={isLoading}>
+              <Button type="submit" variant="outline" disabled={isSaving}>
                 Alterar Senha
               </Button>
             </form>
@@ -448,9 +491,9 @@ const UserSettings = () => {
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={isLoading}>
+        <Button onClick={handleSave} disabled={isSaving}>
           <Save className="mr-2 h-4 w-4" />
-          {isLoading ? "Salvando..." : "Salvar Configurações"}
+          {isSaving ? "Salvando..." : "Salvar Configurações"}
         </Button>
       </div>
     </div>

@@ -3,7 +3,6 @@
 Sistema de gestão para óticas.
 
 ## Como rodar o projeto localmente
-
 ```sh
 # Clone o repositório
  git clone <SEU_GIT_URL>
@@ -11,10 +10,21 @@ Sistema de gestão para óticas.
 # Entre na pasta do projeto
 cd <NOME_DO_PROJETO>
 
-# Instale as dependências
+## Frontend
+# Entre na pasta raiz e instale as dependências do frontend
 npm install
 
-# Rode o servidor de desenvolvimento
+# Rode o servidor de desenvolvimento do frontend
+npm run dev
+
+## Backend
+# Em outro terminal, entre na pasta do backend
+cd backend
+
+# Instale as dependências do backend
+npm install
+
+# Rode o servidor de desenvolvimento do backend
 npm run dev
 ```
 

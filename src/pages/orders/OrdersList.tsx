@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,46 +12,47 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Search, FileText, Eye, Edit, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Plus, Search, FileText, Eye, Edit, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { cashierService } from "@/services/cashierService";
+import { orderService, ServiceOrder } from "@/services/orderService";
 
 const OrdersList = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [orders, setOrders] = useState<ServiceOrder[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [cashierOpen, setCashierOpen] = useState(false);
 
-  // Mock data
-  const orders = [
-    {
-      id: "OS-001",
-      clientName: "João Silva",
-      employeeName: "Maria Santos",
-      status: "pending",
-      total: 450.00,
-      createdAt: "2024-01-15",
-      items: ["Armação Ray-Ban", "Lentes Progressive"],
-    },
-    {
-      id: "OS-002", 
-      clientName: "Ana Costa",
-      employeeName: "Pedro Oliveira",
-      status: "in_progress",
-      total: 320.00,
-      createdAt: "2024-01-14",
-      items: ["Óculos de Sol Oakley"],
-    },
-    {
-      id: "OS-003",
-      clientName: "Carlos Pereira",
-      employeeName: "Maria Santos",
-      status: "completed",
-      total: 680.00,
-      createdAt: "2024-01-13",
-      items: ["Armação Dior", "Lentes Zeiss"],
-    },
-  ];
+  // Verificar se o caixa está aberto
+  useEffect(() => {
+    const checkCashierStatus = async () => {
+      try {
+        const response = await cashierService.checkOpenSession();
+        setCashierOpen(!!response.session);
+      } catch (error) {
+        console.error('Erro ao verificar status do caixa:', error);
+        setCashierOpen(false);
+      }
+    };
+
+    const loadOrders = async () => {
+      try {
+        const ordersData = await orderService.getOrders();
+        setOrders(ordersData);
+      } catch (error) {
+        console.error('Erro ao carregar ordens:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkCashierStatus();
+    loadOrders();
+  }, []);
 
   const filteredOrders = orders.filter(order =>
-    order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.employeeName.toLowerCase().includes(searchTerm.toLowerCase())
+    order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.client_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.employee_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getStatusBadge = (status: string) => {
@@ -95,13 +95,33 @@ const OrdersList = () => {
             Gerencie as ordens de serviço da ótica
           </p>
         </div>
-        <Button asChild>
+        <Button asChild disabled={!cashierOpen}>
           <Link to="/orders/new">
             <Plus className="h-4 w-4 mr-2" />
             Nova OS
           </Link>
         </Button>
       </div>
+
+      {/* Cashier Status Alert */}
+      {!cashierOpen && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <div className="flex items-start space-x-2">
+              <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="font-medium text-red-800">Caixa Fechado</h3>
+                <p className="text-sm text-red-700 mt-1">
+                  É necessário abrir o caixa antes de criar uma nova ordem de serviço. 
+                  <Button variant="link" className="p-0 h-auto text-red-700 underline" asChild>
+                    <Link to="/cashier">Ir para o Caixa</Link>
+                  </Button>
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -171,54 +191,77 @@ const OrdersList = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Número OS</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Funcionário</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.id}</TableCell>
-                  <TableCell>{order.clientName}</TableCell>
-                  <TableCell>{order.employeeName}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      {getStatusIcon(order.status)}
-                      {getStatusBadge(order.status)}
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    R$ {order.total.toLocaleString('pt-BR')}
-                  </TableCell>
-                  <TableCell>
-                    {new Date(order.createdAt).toLocaleDateString('pt-BR')}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link to={`/orders/${order.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link to={`/orders/${order.id}/edit`}>
-                          <Edit className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </div>
-                  </TableCell>
+          {isLoading ? (
+            <div className="text-center py-8">
+              <div className="text-muted-foreground">Carregando ordens...</div>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Número OS</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Funcionário</TableHead>
+                  <TableHead>Sessão Caixa</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredOrders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-medium">{order.order_number}</TableCell>
+                    <TableCell>{order.client_name}</TableCell>
+                    <TableCell>{order.employee_name}</TableCell>
+                    <TableCell>
+                      {order.session_code ? (
+                        <div className="text-sm">
+                          <div className="font-medium">{order.session_code}</div>
+                          <div className={`text-xs ${
+                            order.session_status === 'open' ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            {order.session_status === 'open' ? 'Aberto' : 'Fechado'}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">Sem sessão</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        {getStatusIcon(order.status)}
+                        {getStatusBadge(order.status)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      R$ {Number(order.total_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(order.created_at).toLocaleDateString('pt-BR')}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link to={`/orders/${order.id}`}>
+                            <Eye className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        {order.status === 'pending' && order.session_status === 'open' && (
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link to={`/orders/${order.id}/edit`}>
+                              <Edit className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

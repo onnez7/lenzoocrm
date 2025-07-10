@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,96 +15,100 @@ import {
 } from "@/components/ui/select";
 import { User, Save, Upload, Shield, Mail, Phone, MapPin, Camera } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  role: string;
-  department: string;
-  avatar?: string;
-  bio: string;
-  address: {
-    street: string;
-    city: string;
-    state: string;
-    zipCode: string;
-  };
-  permissions: string[];
-  lastLogin: string;
-  isActive: boolean;
-}
-
-const mockUser: UserProfile = {
-  id: "1",
-  name: "João Silva",
-  email: "joao.silva@lenzoo.com",
-  phone: "(11) 99999-9999",
-  role: "Administrador",
-  department: "Gestão",
-  bio: "Administrador do sistema com mais de 5 anos de experiência em gestão de óticas.",
-  address: {
-    street: "Rua das Flores, 123",
-    city: "São Paulo",
-    state: "SP",
-    zipCode: "01234-567"
-  },
-  permissions: ["dashboard", "clients", "products", "settings"],
-  lastLogin: "2024-01-15T10:30:00",
-  isActive: true
-};
-
-const roles = [
-  "Administrador",
-  "Gerente",
-  "Vendedor",
-  "Técnico",
-  "Atendente"
-];
-
-const departments = [
-  "Gestão",
-  "Vendas",
-  "Técnico",
-  "Atendimento",
-  "Financeiro"
-];
+import { useAuth } from "@/contexts/AuthContext";
+import { userService, UserProfile } from "@/services/userService";
 
 const UserProfile = () => {
-  const [profile, setProfile] = useState<UserProfile>(mockUser);
-  const [isLoading, setIsLoading] = useState(false);
+  const { token, user } = useAuth();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
+
+  // Carregar perfil do usuário
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!token) return;
+      
+      try {
+        const userProfile = await userService.getUserProfile(token);
+        setProfile(userProfile);
+      } catch (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar perfil do usuário",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [token, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    if (!token || !profile) return;
+
+    setIsSaving(true);
     
-    // Simular salvamento
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setIsLoading(false);
-    toast({
-      title: "Perfil atualizado",
-      description: "Suas informações foram salvas com sucesso.",
-    });
+    try {
+      const updatedProfile = await userService.updateUserProfile(profile, token);
+      setProfile(updatedProfile);
+      toast({
+        title: "Perfil atualizado",
+        description: "Suas informações foram salvas com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar perfil",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleInputChange = (field: keyof UserProfile, value: string) => {
+    if (!profile) return;
+    
     setProfile(prev => ({
-      ...prev,
+      ...prev!,
       [field]: value
     }));
   };
 
   const handleAddressChange = (field: keyof UserProfile['address'], value: string) => {
+    if (!profile || !profile.address) return;
+    
     setProfile(prev => ({
-      ...prev,
+      ...prev!,
       address: {
-        ...prev.address,
+        ...prev!.address!,
         [field]: value
       }
     }));
+  };
+
+  const handleAvatarUpload = async (file: File) => {
+    if (!token) return;
+
+    try {
+      const result = await userService.uploadAvatar(file, token);
+      setProfile(prev => prev ? { ...prev, avatar: result.avatarUrl } : null);
+      toast({
+        title: "Avatar atualizado",
+        description: "Sua foto foi atualizada com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar avatar",
+        variant: "destructive",
+      });
+    }
   };
 
   const getInitials = (name: string) => {
@@ -116,6 +119,25 @@ const UserProfile = () => {
       .toUpperCase()
       .slice(0, 2);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p>Carregando perfil...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p>Erro ao carregar perfil</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -145,20 +167,35 @@ const UserProfile = () => {
                     {getInitials(profile.name)}
                   </AvatarFallback>
                 </Avatar>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="absolute -bottom-2 -right-2 rounded-full h-8 w-8 p-0"
-                >
-                  <Camera className="h-4 w-4" />
-                </Button>
+                <input
+                  type="file"
+                  id="avatar-upload"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleAvatarUpload(file);
+                  }}
+                />
+                <label htmlFor="avatar-upload">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="absolute -bottom-2 -right-2 rounded-full h-8 w-8 p-0 cursor-pointer"
+                    type="button"
+                  >
+                    <Camera className="h-4 w-4" />
+                  </Button>
+                </label>
               </div>
               <div>
                 <h3 className="font-medium text-lg">{profile.name}</h3>
                 <p className="text-muted-foreground">{profile.email}</p>
                 <div className="flex items-center gap-2 mt-2">
                   <Badge variant="outline">{profile.role}</Badge>
-                  <Badge variant="secondary">{profile.department}</Badge>
+                  {profile.franchise_name && (
+                    <Badge variant="secondary">{profile.franchise_name}</Badge>
+                  )}
                 </div>
               </div>
             </div>
@@ -190,25 +227,10 @@ const UserProfile = () => {
                 <Label htmlFor="phone">Telefone</Label>
                 <Input
                   id="phone"
-                  value={profile.phone}
+                  value={profile.phone || ''}
                   onChange={(e) => handleInputChange('phone', e.target.value)}
                   placeholder="(11) 99999-9999"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="department">Departamento</Label>
-                <Select value={profile.department} onValueChange={(value) => handleInputChange('department', value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {departments.map(dept => (
-                      <SelectItem key={dept} value={dept}>
-                        {dept}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
 
@@ -216,7 +238,7 @@ const UserProfile = () => {
               <Label htmlFor="bio">Biografia</Label>
               <Textarea
                 id="bio"
-                value={profile.bio}
+                value={profile.bio || ''}
                 onChange={(e) => handleInputChange('bio', e.target.value)}
                 placeholder="Conte um pouco sobre você..."
                 rows={3}
@@ -226,56 +248,58 @@ const UserProfile = () => {
         </Card>
 
         {/* Endereço */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5" />
-              Endereço
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="street">Endereço</Label>
-              <Input
-                id="street"
-                value={profile.address.street}
-                onChange={(e) => handleAddressChange('street', e.target.value)}
-                placeholder="Rua, número"
-              />
-            </div>
+        {profile.address && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Endereço
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="street">Endereço</Label>
+                <Input
+                  id="street"
+                  value={profile.address.street}
+                  onChange={(e) => handleAddressChange('street', e.target.value)}
+                  placeholder="Rua, número"
+                />
+              </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="city">Cidade</Label>
-                <Input
-                  id="city"
-                  value={profile.address.city}
-                  onChange={(e) => handleAddressChange('city', e.target.value)}
-                  placeholder="São Paulo"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="city">Cidade</Label>
+                  <Input
+                    id="city"
+                    value={profile.address.city}
+                    onChange={(e) => handleAddressChange('city', e.target.value)}
+                    placeholder="São Paulo"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="state">Estado</Label>
+                  <Input
+                    id="state"
+                    value={profile.address.state}
+                    onChange={(e) => handleAddressChange('state', e.target.value)}
+                    placeholder="SP"
+                    maxLength={2}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="zipCode">CEP</Label>
+                  <Input
+                    id="zipCode"
+                    value={profile.address.zipCode}
+                    onChange={(e) => handleAddressChange('zipCode', e.target.value)}
+                    placeholder="00000-000"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="state">Estado</Label>
-                <Input
-                  id="state"
-                  value={profile.address.state}
-                  onChange={(e) => handleAddressChange('state', e.target.value)}
-                  placeholder="SP"
-                  maxLength={2}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="zipCode">CEP</Label>
-                <Input
-                  id="zipCode"
-                  value={profile.address.zipCode}
-                  onChange={(e) => handleAddressChange('zipCode', e.target.value)}
-                  placeholder="00000-000"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Informações da Conta */}
         <Card>
@@ -293,31 +317,22 @@ const UserProfile = () => {
                   <Badge variant="outline">{profile.role}</Badge>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>Último Login</Label>
-                <div className="p-3 bg-muted rounded-md text-sm">
-                  {new Date(profile.lastLogin).toLocaleString('pt-BR')}
+              {profile.lastLogin && (
+                <div className="space-y-2">
+                  <Label>Último Login</Label>
+                  <div className="p-3 bg-muted rounded-md text-sm">
+                    {new Date(profile.lastLogin).toLocaleString('pt-BR')}
+                  </div>
                 </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Permissões</Label>
-              <div className="flex flex-wrap gap-2">
-                {profile.permissions.map(permission => (
-                  <Badge key={permission} variant="secondary">
-                    {permission}
-                  </Badge>
-                ))}
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
 
         <div className="flex justify-end">
-          <Button type="submit" disabled={isLoading}>
+          <Button type="submit" disabled={isSaving}>
             <Save className="mr-2 h-4 w-4" />
-            {isLoading ? "Salvando..." : "Salvar Alterações"}
+            {isSaving ? "Salvando..." : "Salvar Alterações"}
           </Button>
         </div>
       </form>
