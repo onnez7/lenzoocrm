@@ -1,22 +1,16 @@
 #!/bin/bash
+set -e
 
-echo "🚀 Iniciando build do LenzooCRM..."
+echo "Installing frontend dependencies..."
+npm ci --include=optional
 
-# Instalar dependências do frontend
-echo "📦 Instalando dependências do frontend..."
-npm install
+echo "Installing backend dependencies..."
+cd backend && npm ci && cd ..
 
-# Build do frontend
-echo "🔨 Build do frontend..."
+echo "Building frontend..."
 npm run build
 
-# Instalar dependências do backend
-echo "📦 Instalando dependências do backend..."
-cd backend
-npm install
+echo "Building backend..."
+cd backend && npm run build && cd ..
 
-# Build do backend
-echo "🔨 Build do backend..."
-npm run build
-
-echo "✅ Build concluído com sucesso!" 
+echo "Build completed successfully!" 
