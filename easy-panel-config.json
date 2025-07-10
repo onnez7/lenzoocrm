@@ -1,0 +1,45 @@
+{
+  "project_name": "LenzooCRM",
+  "description": "Sistema de CRM para franquias de óticas",
+  "version": "1.0.0",
+  "services": {
+    "database": {
+      "type": "postgresql",
+      "version": "15",
+      "port": 5432,
+      "environment": {
+        "POSTGRES_DB": "lenzoocrm",
+        "POSTGRES_USER": "lenzoo_user",
+        "POSTGRES_PASSWORD": "lenzoo_password"
+      }
+    },
+    "backend": {
+      "type": "nodejs",
+      "version": "18",
+      "port": 3001,
+      "build_command": "npm install && npm run build",
+      "start_command": "npm start",
+      "environment": {
+        "NODE_ENV": "production",
+        "DATABASE_URL": "postgresql://lenzoo_user:lenzoo_password@database:5432/lenzoocrm",
+        "JWT_SECRET": "seu_jwt_secret_super_seguro_aqui"
+      }
+    },
+    "frontend": {
+      "type": "nginx",
+      "port": 80,
+      "build_command": "npm install && npm run build",
+      "static_files": "dist"
+    }
+  },
+  "domains": [
+    "seu-dominio.com",
+    "www.seu-dominio.com"
+  ],
+  "ssl": true,
+  "backup": {
+    "enabled": true,
+    "frequency": "daily",
+    "retention": 7
+  }
+} 

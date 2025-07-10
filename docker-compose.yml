@@ -1,18 +1,64 @@
 version: '3.8'
 
 services:
+  # Banco de dados PostgreSQL
   postgres:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: lenzoocrm_postgres
     environment:
       POSTGRES_DB: lenzoocrm
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: lenzoo_user
+      POSTGRES_PASSWORD: lenzoo_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backend/database.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
     restart: unless-stopped
+    networks:
+      - lenzoocrm_network
+
+  # Backend Node.js
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    container_name: lenzoocrm_backend
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://lenzoo_user:lenzoo_password@postgres:5432/lenzoocrm
+      JWT_SECRET: seu_jwt_secret_super_seguro_aqui
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - lenzoocrm_network
+    volumes:
+      - ./uploads:/app/uploads
+
+  # Frontend (servido pelo nginx)
+  frontend:
+    image: nginx:alpine
+    container_name: lenzoocrm_frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - lenzoocrm_network
 
 volumes:
-  postgres_data: 
+  postgres_data:
+
+networks:
+  lenzoocrm_network:
+    driver: bridge 
