@@ -1,24 +1,28 @@
+# Use Node.js 18 Alpine
 FROM node:18-alpine
 
+# Set working directory
 WORKDIR /app
 
-# Copiar package.json e instalar dependências
+# Copy package files
 COPY package*.json ./
 COPY backend/package*.json ./backend/
-RUN npm install
-RUN cd backend && npm install
 
-# Copiar código fonte
+# Install dependencies
+RUN npm ci --only=production
+RUN cd backend && npm ci --only=production
+
+# Copy source code
 COPY . .
 
-# Build do frontend
+# Build frontend
 RUN npm run build
 
-# Build do backend
+# Build backend
 RUN cd backend && npm run build
 
-# Expor porta
+# Expose port
 EXPOSE 3001
 
-# Comando para iniciar
+# Start the application
 CMD ["npm", "run", "start"] 
