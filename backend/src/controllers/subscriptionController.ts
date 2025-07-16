@@ -403,9 +403,11 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
     await StripeService.handleWebhook(event);
 
     res.json({ received: true });
+    return res.json({ received: true });
   } catch (error) {
     console.error('Erro ao processar webhook:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
+    return res.status(500).json({ error: 'Erro interno do servidor' });
   }
 };
 
@@ -441,9 +443,11 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     );
 
     res.json({ checkout_url: checkoutUrl });
+    return res.json({ checkout_url: checkoutUrl });
   } catch (error) {
     console.error('Erro ao criar sessão de checkout:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
+    return res.status(500).json({ error: 'Erro interno do servidor' });
   }
 };
 
@@ -496,10 +500,12 @@ export const cancelSubscription = async (req: AuthenticatedRequest, res: Respons
     await client.query('COMMIT');
 
     res.json(result.rows[0]);
+    return res.json(result.rows[0]);
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Erro ao cancelar assinatura:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
+    return res.status(500).json({ error: 'Erro interno do servidor' });
   } finally {
     client.release();
   }
@@ -538,10 +544,12 @@ export const reactivateSubscription = async (req: AuthenticatedRequest, res: Res
     await client.query('COMMIT');
 
     res.json(result.rows[0]);
+    return res.json(result.rows[0]);
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Erro ao reativar assinatura:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
+    return res.status(500).json({ error: 'Erro interno do servidor' });
   } finally {
     client.release();
   }

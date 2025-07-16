@@ -71,8 +71,13 @@ router.get('/test-query', async (req: any, res) => {
       params: params
     });
   } catch (error) {
+    // Adiciona verificação de tipo para 'error'
+    let errorMessage = 'Ocorreu um erro desconhecido.';
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
     console.error('Erro no test query:', error);
-    res.status(500).json({ message: 'Erro no test query', error: error.message });
+    res.status(500).json({ message: errorMessage });
   }
 });
 
