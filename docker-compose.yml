@@ -44,7 +44,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile.frontend
+      dockerfile: Dockerfile
     container_name: lenzoocrm_frontend
     ports:
       - "80:80"
