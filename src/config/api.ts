@@ -1,11 +1,8 @@
 import axios from 'axios';
 
-// Configuração da API
-export const API_BASE_URL = 'http://localhost:3001/api';
-
-// Instância do axios configurada
+// Instância do axios configurada para usar proxy reverso do Nginx
 export const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -34,5 +31,5 @@ api.interceptors.response.use(
   }
 );
 
-// Função para construir URLs da API
-export const apiUrl = (endpoint: string) => `${API_BASE_URL}${endpoint}`; 
+// Função para construir URLs da API (agora relativa)
+export const apiUrl = (endpoint: string) => `/api${endpoint}`; 

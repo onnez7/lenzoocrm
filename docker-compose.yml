@@ -28,8 +28,6 @@ services:
       DATABASE_URL: postgresql://lenzoo_user:lenzoo_password@postgres:5432/lenzoocrm
       JWT_SECRET: seu_jwt_secret_super_seguro_aqui
       PORT: 3001
-    ports:
-      - "3001:3001"
     depends_on:
       - postgres
     restart: unless-stopped
@@ -48,8 +46,6 @@ services:
     restart: unless-stopped
     networks:
       - lenzoocrm_network
-    ports:
-      - "8282:80"
 
 volumes:
   postgres_data:

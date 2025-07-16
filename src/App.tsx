@@ -68,6 +68,7 @@ import Subscription from "@/pages/Subscription/Subscription";
 import AdminSupport from "@/pages/admin/AdminSupportTickets";
 
 
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -82,6 +83,11 @@ const App = () => (
           
           {/* Authentication Routes */}
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Login />} />
+          <Route path="/forgot-password" element={<Login />} />
+          <Route path="/reset-password" element={<Login />} />
+          <Route path="/verify-email" element={<Login />} />
+
           
           {/* Main Application Routes */}
           <Route path="/" element={<Layout />}>
