@@ -32,11 +32,10 @@ export const getFranchiseChannel = async (req: AuthenticatedRequest, res: Respon
         [req.user.franchiseId, 'Geral']
       );
     }
-    channel = result.rows[0];
-    res.status(200).json(channel);
+    channel = result.rows[0];  return res.status(200).json(channel);
   } catch (error) {
     console.error('Erro ao buscar canal da franquia:', error);
-    res.status(500).json({ message: 'Erro ao buscar canal.' });
+    return res.status(500).json({ message: 'Erro ao buscar canal.' });
   }
 };
 
@@ -48,10 +47,10 @@ export const getChannelMessages = async (req: AuthenticatedRequest, res: Respons
       `SELECT m.*, u.name as author_name, u.role as author_role FROM franchise_channel_messages m JOIN users u ON m.user_id = u.id WHERE m.channel_id = $1 ORDER BY m.created_at ASC`,
       [channelId]
     );
-    res.status(200).json(result.rows);
+    return res.status(200).json(result.rows);
   } catch (error) {
     console.error('Erro ao buscar mensagens do canal:', error);
-    res.status(500).json({ message: 'Erro ao buscar mensagens.' });
+    return res.status(500).json({ message: 'Erro ao buscar mensagens.' });
   }
 };
 
@@ -70,10 +69,10 @@ export const sendChannelMessage = async (req: AuthenticatedRequest, res: Respons
       'INSERT INTO franchise_channel_messages (channel_id, user_id, message) VALUES ($1, $2, $3) RETURNING *',
       [channelId, req.user.id, message]
     );
-    res.status(201).json(result.rows[0]);
+    return res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Erro ao enviar mensagem:', error);
-    res.status(500).json({ message: 'Erro ao enviar mensagem.' });
+    return res.status(500).json({ message: 'Erro ao enviar mensagem.' });
   }
 };
 
@@ -96,10 +95,10 @@ export const createFranchiseChannel = async (req: AuthenticatedRequest, res: Res
     // Adiciona membros
     const values = memberIds.map((uid: number) => `(${channel.id}, ${uid})`).join(',');
     await pool.query(`INSERT INTO franchise_channel_members (channel_id, user_id) VALUES ${values}`);
-    res.status(201).json(channel);
+    return res.status(201).json(channel);
   } catch (error) {
     console.error('Erro ao criar canal:', error);
-    res.status(500).json({ message: 'Erro ao criar canal.' });
+    return res.status(500).json({ message: 'Erro ao criar canal.' });
   }
 };
 
@@ -116,10 +115,10 @@ export const getMyFranchiseChannels = async (req: AuthenticatedRequest, res: Res
        ORDER BY c.created_at ASC`,
       [req.user.id, req.user.franchiseId]
     );
-    res.status(200).json(result.rows);
+    return res.status(200).json(result.rows);
   } catch (error) {
     console.error('Erro ao listar canais:', error);
-    res.status(500).json({ message: 'Erro ao listar canais.' });
+    return res.status(500).json({ message: 'Erro ao listar canais.' });
   }
 };
 
@@ -133,10 +132,10 @@ export const addChannelMembers = async (req: AuthenticatedRequest, res: Response
     }
     const values = memberIds.map((uid: number) => `(${channelId}, ${uid})`).join(',');
     await pool.query(`INSERT INTO franchise_channel_members (channel_id, user_id) VALUES ${values} ON CONFLICT DO NOTHING`);
-    res.status(200).json({ message: 'Membros adicionados.' });
+    return res.status(200).json({ message: 'Membros adicionados.' });
   } catch (error) {
     console.error('Erro ao adicionar membros:', error);
-    res.status(500).json({ message: 'Erro ao adicionar membros.' });
+    return res.status(500).json({ message: 'Erro ao adicionar membros.' });
   }
 };
 
@@ -146,10 +145,10 @@ export const removeChannelMember = async (req: AuthenticatedRequest, res: Respon
     const channelId = parseInt(req.params.id);
     const userId = parseInt(req.params.userId);
     await pool.query('DELETE FROM franchise_channel_members WHERE channel_id = $1 AND user_id = $2', [channelId, userId]);
-    res.status(200).json({ message: 'Membro removido.' });
+    return res.status(200).json({ message: 'Membro removido.' });
   } catch (error) {
     console.error('Erro ao remover membro:', error);
-    res.status(500).json({ message: 'Erro ao remover membro.' });
+    return res.status(500).json({ message: 'Erro ao remover membro.' });
   }
 };
 
@@ -169,9 +168,9 @@ export const deleteFranchiseChannel = async (req: AuthenticatedRequest, res: Res
       return res.status(403).json({ message: 'Apenas o criador pode deletar o canal.' });
     }
     await pool.query('DELETE FROM franchise_channels WHERE id = $1', [channelId]);
-    res.status(200).json({ message: 'Canal deletado.' });
+    return res.status(200).json({ message: 'Canal deletado.' });
   } catch (error) {
     console.error('Erro ao deletar canal:', error);
-    res.status(500).json({ message: 'Erro ao deletar canal.' });
+    return res.status(500).json({ message: 'Erro ao deletar canal.' });
   }
 }; 

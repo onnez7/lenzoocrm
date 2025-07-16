@@ -65,10 +65,10 @@ class InvoiceController {
 
       const result = await db.query(query, params);
 
-      res.json(result.rows);
+      return res.json(result.rows);
     } catch (error) {
       console.error('Erro ao buscar notas fiscais:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
@@ -87,10 +87,10 @@ class InvoiceController {
         return res.status(404).json({ message: 'Nota fiscal não encontrada' });
       }
 
-      res.json(result.rows[0]);
+      return res.json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao buscar nota fiscal:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
@@ -137,10 +137,10 @@ class InvoiceController {
         ]
       );
 
-      res.status(201).json(result.rows[0]);
+      return res.status(201).json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao criar nota fiscal:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
@@ -233,10 +233,10 @@ class InvoiceController {
         [id]
       );
 
-      res.json(result.rows[0]);
+      return res.json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao atualizar nota fiscal:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
@@ -261,10 +261,10 @@ class InvoiceController {
         [id, franchiseId]
       );
 
-      res.status(204).send();
+      return res.status(204).send();
     } catch (error) {
       console.error('Erro ao deletar nota fiscal:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
@@ -310,10 +310,10 @@ class InvoiceController {
         [id]
       );
 
-      res.json(result.rows[0]);
+      return res.json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao marcar como pago:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
@@ -334,14 +334,13 @@ class InvoiceController {
       }
 
       // Aqui você implementaria a geração do PDF
-      // Por enquanto, retornamos um JSON com os dados da nota
-      res.json({
+      // Por enquanto, retornamos um JSON com os dados da nota      return res.json({
         message: 'Download da nota fiscal',
         invoice: existingResult.rows[0]
       });
     } catch (error) {
       console.error('Erro ao baixar nota fiscal:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
@@ -363,10 +362,10 @@ class InvoiceController {
         [franchiseId]
       );
 
-      res.json(result.rows[0]);
+      return res.json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao buscar estatísticas:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 }

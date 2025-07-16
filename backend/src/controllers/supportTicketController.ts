@@ -27,10 +27,10 @@ export const createTicket = async (req: AuthenticatedRequest, res: Response) => 
       `INSERT INTO support_tickets (franchise_id, user_id, title, description, priority) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [req.user.franchiseId, req.user.id, title, description, priority || 'medium']
     );
-    res.status(201).json(result.rows[0]);
+    return res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Erro ao criar ticket:', error);
-    res.status(500).json({ message: 'Erro ao criar ticket.' });
+    return res.status(500).json({ message: 'Erro ao criar ticket.' });
   }
 };
 
@@ -44,10 +44,10 @@ export const getMyTickets = async (req: AuthenticatedRequest, res: Response) => 
       `SELECT t.*, u.name as opened_by FROM support_tickets t JOIN users u ON t.user_id = u.id WHERE t.franchise_id = $1 ORDER BY t.created_at DESC`,
       [req.user.franchiseId]
     );
-    res.status(200).json(result.rows);
+    return res.status(200).json(result.rows);
   } catch (error) {
     console.error('Erro ao buscar tickets:', error);
-    res.status(500).json({ message: 'Erro ao buscar tickets.' });
+    return res.status(500).json({ message: 'Erro ao buscar tickets.' });
   }
 };
 
@@ -57,10 +57,10 @@ export const getAllTickets = async (req: AuthenticatedRequest, res: Response) =>
     const result = await pool.query(
       `SELECT t.*, u.name as opened_by, f.name as franchise_name FROM support_tickets t JOIN users u ON t.user_id = u.id JOIN franchises f ON t.franchise_id = f.id ORDER BY t.created_at DESC`
     );
-    res.status(200).json(result.rows);
+    return res.status(200).json(result.rows);
   } catch (error) {
     console.error('Erro ao buscar todos os tickets:', error);
-    res.status(500).json({ message: 'Erro ao buscar tickets.' });
+    return res.status(500).json({ message: 'Erro ao buscar tickets.' });
   }
 };
 
@@ -75,10 +75,10 @@ export const getTicketById = async (req: AuthenticatedRequest, res: Response) =>
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Ticket não encontrado.' });
     }
-    res.status(200).json(result.rows[0]);
+    return res.status(200).json(result.rows[0]);
   } catch (error) {
     console.error('Erro ao buscar ticket:', error);
-    res.status(500).json({ message: 'Erro ao buscar ticket.' });
+    return res.status(500).json({ message: 'Erro ao buscar ticket.' });
   }
 };
 
@@ -97,10 +97,10 @@ export const addTicketMessage = async (req: AuthenticatedRequest, res: Response)
       `INSERT INTO support_ticket_messages (ticket_id, user_id, message) VALUES ($1, $2, $3) RETURNING *`,
       [ticketId, req.user.id, message]
     );
-    res.status(201).json(result.rows[0]);
+    return res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Erro ao adicionar mensagem ao ticket:', error);
-    res.status(500).json({ message: 'Erro ao adicionar mensagem.' });
+    return res.status(500).json({ message: 'Erro ao adicionar mensagem.' });
   }
 };
 
@@ -112,9 +112,9 @@ export const getTicketMessages = async (req: AuthenticatedRequest, res: Response
       `SELECT m.*, u.name as author_name, u.role as author_role FROM support_ticket_messages m JOIN users u ON m.user_id = u.id WHERE m.ticket_id = $1 ORDER BY m.created_at ASC`,
       [ticketId]
     );
-    res.status(200).json(result.rows);
+    return res.status(200).json(result.rows);
   } catch (error) {
     console.error('Erro ao buscar mensagens do ticket:', error);
-    res.status(500).json({ message: 'Erro ao buscar mensagens.' });
+    return res.status(500).json({ message: 'Erro ao buscar mensagens.' });
   }
 }; 
