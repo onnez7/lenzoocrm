@@ -69,10 +69,10 @@ class PayableController {
 
       const result = await db.query(query, params);
 
-      res.json(result.rows);
+      return res.json(result.rows);
     } catch (error) {
       console.error('Erro ao buscar contas a pagar:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
@@ -91,10 +91,10 @@ class PayableController {
         return res.status(404).json({ message: 'Conta a pagar não encontrada' });
       }
 
-      res.json(result.rows[0]);
+      return res.json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao buscar conta a pagar:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
@@ -132,10 +132,10 @@ class PayableController {
         ]
       );
 
-      res.status(201).json(result.rows[0]);
+      return res.status(201).json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao criar conta a pagar:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
@@ -222,10 +222,10 @@ class PayableController {
         [id]
       );
 
-      res.json(result.rows[0]);
+      return res.json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao atualizar conta a pagar:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
@@ -250,10 +250,10 @@ class PayableController {
         [id, franchiseId]
       );
 
-      res.status(204).send();
+      return res.status(204).send();
     } catch (error) {
       console.error('Erro ao deletar conta a pagar:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
@@ -305,10 +305,10 @@ class PayableController {
         [id]
       );
 
-      res.json(result.rows[0]);
+      return res.json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao marcar como pago:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
@@ -331,10 +331,10 @@ class PayableController {
         [franchiseId]
       );
 
-      res.json(result.rows[0]);
+      return res.json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao buscar estatísticas:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 }
