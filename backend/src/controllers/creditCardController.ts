@@ -47,10 +47,10 @@ class CreditCardController {
         [franchiseId]
       );
 
-      res.json(result.rows);
+      return res.json(result.rows);
     } catch (error) {
       console.error('Erro ao buscar cartões de crédito:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
@@ -69,10 +69,10 @@ class CreditCardController {
         return res.status(404).json({ message: 'Cartão de crédito não encontrado' });
       }
 
-      res.json(result.rows[0]);
+      return res.json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao buscar cartão de crédito:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
@@ -112,10 +112,10 @@ class CreditCardController {
         ]
       );
 
-      res.status(201).json(result.rows[0]);
+      return res.status(201).json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao criar cartão de crédito:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
@@ -200,10 +200,10 @@ class CreditCardController {
         [id]
       );
 
-      res.json(result.rows[0]);
+      return res.json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao atualizar cartão de crédito:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
@@ -228,10 +228,10 @@ class CreditCardController {
         [id, franchiseId]
       );
 
-      res.status(204).send();
+      return res.status(204).send();
     } catch (error) {
       console.error('Erro ao deletar cartão de crédito:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
@@ -273,10 +273,10 @@ class CreditCardController {
         [id]
       );
 
-      res.json(result.rows[0]);
+      return res.json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao atualizar limite disponível:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
@@ -297,10 +297,10 @@ class CreditCardController {
         [franchiseId]
       );
 
-      res.json(result.rows[0]);
+      return res.json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao buscar estatísticas:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 }

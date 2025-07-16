@@ -36,7 +36,7 @@ interface UpdateBankAccountData {
 
 class BankAccountController {
   // Buscar todas as contas bancárias
-  async getBankAccounts(req: Request, res: Response): Promise<void> {
+  async getBankAccounts(req: Request, res: Response) {
     try {
       const franchiseId = (req.user as any).franchiseId;
 
@@ -45,15 +45,15 @@ class BankAccountController {
         [franchiseId]
       );
 
-      res.json(result.rows); return;
+      return res.json(result.rows);
     } catch (error) {
       console.error('Erro ao buscar contas bancárias:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' }); return;
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
   // Buscar conta bancária por ID
-  async getBankAccountById(req: Request, res: Response): Promise<void> {
+  async getBankAccountById(req: Request, res: Response) {
     try {
       const { id } = req.params;
       const franchiseId = (req.user as any).franchiseId;
@@ -67,15 +67,15 @@ class BankAccountController {
         return res.status(404).json({ message: 'Conta bancária não encontrada' });
       }
 
-      res.json(result.rows[0]); return;
+      return res.json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao buscar conta bancária:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' }); return;
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
   // Criar nova conta bancária
-  async createBankAccount(req: Request, res: Response): Promise<void> {
+  async createBankAccount(req: Request, res: Response) {
     try {
       const franchiseId = (req.user as any).franchiseId;
       const data: CreateBankAccountData = req.body;
@@ -105,15 +105,15 @@ class BankAccountController {
         ]
       );
 
-      res.status(201).json(result.rows[0]); return;
+      return res.status(201).json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao criar conta bancária:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' }); return;
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
   // Atualizar conta bancária
-  async updateBankAccount(req: Request, res: Response): Promise<void> {
+  async updateBankAccount(req: Request, res: Response) {
     try {
       const { id } = req.params;
       const franchiseId = (req.user as any).franchiseId;
@@ -183,15 +183,15 @@ class BankAccountController {
         [id]
       );
 
-      res.json(result.rows[0]); return;
+      return res.json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao atualizar conta bancária:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' }); return;
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
   // Deletar conta bancária
-  async deleteBankAccount(req: Request, res: Response): Promise<void> {
+  async deleteBankAccount(req: Request, res: Response) {
     try {
       const { id } = req.params;
       const franchiseId = (req.user as any).franchiseId;
@@ -211,15 +211,15 @@ class BankAccountController {
         [id, franchiseId]
       );
 
-      res.status(204).send(); return;
+      return res.status(204).send();
     } catch (error) {
       console.error('Erro ao deletar conta bancária:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' }); return;
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
   // Atualizar saldo
-  async updateBalance(req: Request, res: Response): Promise<void> {
+  async updateBalance(req: Request, res: Response) {
     try {
       const { id } = req.params;
       const franchiseId = (req.user as any).franchiseId;
@@ -250,15 +250,15 @@ class BankAccountController {
         [id]
       );
 
-      res.json(result.rows[0]); return;
+      return res.json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao atualizar saldo:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' }); return;
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 
   // Buscar estatísticas
-  async getBankAccountStats(req: Request, res: Response): Promise<void> {
+  async getBankAccountStats(req: Request, res: Response) {
     try {
       const franchiseId = (req.user as any).franchiseId;
 
@@ -273,10 +273,10 @@ class BankAccountController {
         [franchiseId]
       );
 
-      res.json(result.rows[0]); return;
+      return res.json(result.rows[0]);
     } catch (error) {
       console.error('Erro ao buscar estatísticas:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' }); return;
+      return res.status(500).json({ message: 'Erro interno do servidor' });
     }
   }
 }
