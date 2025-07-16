@@ -4,7 +4,6 @@ services:
   # Banco de dados PostgreSQL
   postgres:
     image: postgres:15-alpine
-    container_name: lenzoocrm_postgres
     environment:
       POSTGRES_DB: lenzoocrm
       POSTGRES_USER: lenzoo_user
@@ -24,7 +23,6 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: runner
-    container_name: lenzoocrm_backend
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://lenzoo_user:lenzoo_password@postgres:5432/lenzoocrm
@@ -45,12 +43,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: lenzoocrm_frontend
     depends_on:
       - backend
     restart: unless-stopped
     networks:
       - lenzoocrm_network
+    ports:
+      - "8282:80"
 
 volumes:
   postgres_data:
