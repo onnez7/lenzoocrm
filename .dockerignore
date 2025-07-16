@@ -1,4 +1,8 @@
 node_modules
+
+# Ignora a pasta do backend ao construir o frontend
+backend/
+
 npm-debug.log
 .git
 .gitignore
