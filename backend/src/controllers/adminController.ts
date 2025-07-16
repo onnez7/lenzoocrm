@@ -10,7 +10,7 @@ interface AuthenticatedRequest extends Request {
 }
 
 // Estatísticas gerais do sistema (apenas SUPER_ADMIN)
-export const getAdminStats = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const getAdminStats = async (req: AuthenticatedRequest, res: Response) => {
   const { role } = req.user!;
 
   if (role !== 'SUPER_ADMIN') {
@@ -92,7 +92,7 @@ export const getAdminStats = async (req: AuthenticatedRequest, res: Response): P
 };
 
 // Dados de receita mensal (últimos 6 meses)
-export const getRevenueData = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const getRevenueData = async (req: AuthenticatedRequest, res: Response) => {
   const { role } = req.user!;
 
   if (role !== 'SUPER_ADMIN') {
@@ -125,7 +125,7 @@ export const getRevenueData = async (req: AuthenticatedRequest, res: Response): 
 };
 
 // Atividade recente
-export const getRecentActivity = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const getRecentActivity = async (req: AuthenticatedRequest, res: Response) => {
   const { role } = req.user!;
 
   if (role !== 'SUPER_ADMIN') {
@@ -217,7 +217,7 @@ export const getRecentActivity = async (req: AuthenticatedRequest, res: Response
 };
 
 // Top performers (franquias com mais vendas)
-export const getTopPerformers = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const getTopPerformers = async (req: AuthenticatedRequest, res: Response) => {
   const { role } = req.user!;
 
   if (role !== 'SUPER_ADMIN') {
@@ -260,7 +260,7 @@ export const getTopPerformers = async (req: AuthenticatedRequest, res: Response)
 };
 
 // Alertas críticos
-export const getCriticalAlerts = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const getCriticalAlerts = async (req: AuthenticatedRequest, res: Response) => {
   const { role } = req.user!;
 
   if (role !== 'SUPER_ADMIN') {
@@ -339,7 +339,7 @@ export const getCriticalAlerts = async (req: AuthenticatedRequest, res: Response
 };
 
 // Buscar métricas detalhadas de uma franquia específica
-export const getFranchiseMetrics = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const getFranchiseMetrics = async (req: AuthenticatedRequest, res: Response) => {
   const { role } = req.user!;
   const franchiseId = parseInt(req.params.id);
 

@@ -29,7 +29,7 @@ interface Appointment {
 }
 
 // Buscar todos os agendamentos da franquia
-export const getAppointments = async (req: Request, res: Response) => {
+export const getAppointments = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.user as any;
     const franchiseId = user.role === 'SUPER_ADMIN' ? null : user.franchise_id;
@@ -76,15 +76,15 @@ export const getAppointments = async (req: Request, res: Response) => {
       employee_name: row.employee_name
     }));
     
-    res.json(mappedAppointments);
+    res.json(mappedAppointments); return;
   } catch (error) {
     console.error('Erro ao buscar agendamentos:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
+    res.status(500).json({ message: 'Erro interno do servidor' }); return;
   }
 };
 
 // Buscar agendamento por ID
-export const getAppointmentById = async (req: Request, res: Response) => {
+export const getAppointmentById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const user = req.user as any;
@@ -134,15 +134,15 @@ export const getAppointmentById = async (req: Request, res: Response) => {
       employee_name: row.employee_name
     };
 
-    res.json(mappedAppointment);
+    res.json(mappedAppointment); return;
   } catch (error) {
     console.error('Erro ao buscar agendamento:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
+    res.status(500).json({ message: 'Erro interno do servidor' }); return;
   }
 };
 
 // Criar novo agendamento
-export const createAppointment = async (req: Request, res: Response) => {
+export const createAppointment = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.user as any;
     const franchiseId = user.role === 'SUPER_ADMIN' ? null : user.franchise_id;
@@ -249,15 +249,15 @@ export const createAppointment = async (req: Request, res: Response) => {
       employee_name: row.employee_name
     };
 
-    res.status(201).json(mappedAppointment);
+    res.status(201).json(mappedAppointment); return;
   } catch (error) {
     console.error('Erro ao criar agendamento:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
+    res.status(500).json({ message: 'Erro interno do servidor' }); return;
   }
 };
 
 // Atualizar agendamento
-export const updateAppointment = async (req: Request, res: Response) => {
+export const updateAppointment = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const user = req.user as any;
@@ -354,19 +354,20 @@ export const updateAppointment = async (req: Request, res: Response) => {
       [id]
     );
 
-    res.json(appointmentWithDetails.rows[0]);
+    res.json(appointmentWithDetails.rows[0]); return;
   } catch (error) {
     console.error('Erro ao atualizar agendamento:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
+    res.status(500).json({ message: 'Erro interno do servidor' }); return;
   }
 };
 
 // Deletar agendamento
-export const deleteAppointment = async (req: Request, res: Response) => {
+export const deleteAppointment = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const user = req.user as any;
     const franchiseId = user.role === 'SUPER_ADMIN' ? null : user.franchise_id;
+    
 
     let query = 'DELETE FROM appointments WHERE id = $1';
     const params: any[] = [id];
@@ -383,15 +384,15 @@ export const deleteAppointment = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Agendamento não encontrado' });
     }
 
-    res.json({ message: 'Agendamento deletado com sucesso' });
+    res.json({ message: 'Agendamento deletado com sucesso' }); return;
   } catch (error) {
     console.error('Erro ao deletar agendamento:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
+    res.status(500).json({ message: 'Erro interno do servidor' }); return;
   }
 };
 
 // Buscar agendamentos por data
-export const getAppointmentsByDate = async (req: Request, res: Response) => {
+export const getAppointmentsByDate = async (req: Request, res: Response): Promise<void> => {
   try {
     const { date } = req.params;
     const user = req.user as any;
@@ -439,15 +440,15 @@ export const getAppointmentsByDate = async (req: Request, res: Response) => {
       employee_name: row.employee_name
     }));
     
-    res.json(mappedAppointments);
+    res.json(mappedAppointments); return;
   } catch (error) {
     console.error('Erro ao buscar agendamentos por data:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
+    res.status(500).json({ message: 'Erro interno do servidor' }); return;
   }
 };
 
 // Buscar agendamentos por funcionário
-export const getAppointmentsByEmployee = async (req: Request, res: Response) => {
+export const getAppointmentsByEmployee = async (req: Request, res: Response): Promise<void> => {
   try {
     const { employeeId } = req.params;
     const user = req.user as any;
@@ -495,9 +496,9 @@ export const getAppointmentsByEmployee = async (req: Request, res: Response) => 
       employee_name: row.employee_name
     }));
     
-    res.json(mappedAppointments);
+    res.json(mappedAppointments); return;
   } catch (error) {
     console.error('Erro ao buscar agendamentos por funcionário:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
+    res.status(500).json({ message: 'Erro interno do servidor' }); return;
   }
 }; 
