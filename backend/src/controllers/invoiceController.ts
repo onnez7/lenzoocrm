@@ -334,7 +334,8 @@ class InvoiceController {
       }
 
       // Aqui você implementaria a geração do PDF
-      // Por enquanto, retornamos um JSON com os dados da nota      return res.json({
+      // Por enquanto, retornamos um JSON com os dados da nota
+      return res.json({
         message: 'Download da nota fiscal',
         invoice: existingResult.rows[0]
       });
