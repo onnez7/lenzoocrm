@@ -43,7 +43,7 @@ services:
   # Frontend (servido pelo nginx)
   frontend:
     build:
-      context: ./front-end
+      context: .
       dockerfile: Dockerfile
     container_name: lenzoocrm_frontend
     ports:
