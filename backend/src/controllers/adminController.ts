@@ -14,8 +14,7 @@ export const getAdminStats = async (req: AuthenticatedRequest, res: Response): P
   const { role } = req.user!;
 
   if (role !== 'SUPER_ADMIN') {
-    res.status(403).json({ message: 'Acesso negado. Apenas SUPER_ADMIN pode acessar estas estatísticas.' });
-    return;
+    return res.status(403).json({ message: 'Acesso negado. Apenas SUPER_ADMIN pode acessar estas estatísticas.' });
   }
 
   try {
@@ -85,12 +84,10 @@ export const getAdminStats = async (req: AuthenticatedRequest, res: Response): P
       pendingPayables: parseFloat(payablesResult.rows[0].pending_amount || 0)
     };
 
-    res.status(200).json(stats);
-    return;
+    return res.status(200).json(stats);
   } catch (error) {
     console.error('Erro ao buscar estatísticas admin:', error);
-    res.status(500).json({ message: 'Erro interno do servidor ao buscar estatísticas.' });
-    return;
+    return res.status(500).json({ message: 'Erro interno do servidor ao buscar estatísticas.' });
   }
 };
 
@@ -99,8 +96,7 @@ export const getRevenueData = async (req: AuthenticatedRequest, res: Response): 
   const { role } = req.user!;
 
   if (role !== 'SUPER_ADMIN') {
-    res.status(403).json({ message: 'Acesso negado. Apenas SUPER_ADMIN pode acessar estes dados.' });
-    return;
+    return res.status(403).json({ message: 'Acesso negado. Apenas SUPER_ADMIN pode acessar estes dados.' });
   }
 
   try {
@@ -121,12 +117,10 @@ export const getRevenueData = async (req: AuthenticatedRequest, res: Response): 
       franchises: parseInt(row.franchises || 0)
     }));
 
-    res.status(200).json(revenueData);
-    return;
+    return res.status(200).json(revenueData);
   } catch (error) {
     console.error('Erro ao buscar dados de receita:', error);
-    res.status(500).json({ message: 'Erro interno do servidor ao buscar dados de receita.' });
-    return;
+    return res.status(500).json({ message: 'Erro interno do servidor ao buscar dados de receita.' });
   }
 };
 
@@ -135,8 +129,7 @@ export const getRecentActivity = async (req: AuthenticatedRequest, res: Response
   const { role } = req.user!;
 
   if (role !== 'SUPER_ADMIN') {
-    res.status(403).json({ message: 'Acesso negado. Apenas SUPER_ADMIN pode acessar estes dados.' });
-    return;
+    return res.status(403).json({ message: 'Acesso negado. Apenas SUPER_ADMIN pode acessar estes dados.' });
   }
 
   try {
@@ -216,12 +209,10 @@ export const getRecentActivity = async (req: AuthenticatedRequest, res: Response
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
      .slice(0, 15);
 
-    res.status(200).json(activity);
-    return;
+    return res.status(200).json(activity);
   } catch (error) {
     console.error('Erro ao buscar atividade recente:', error);
-    res.status(500).json({ message: 'Erro interno do servidor ao buscar atividade recente.' });
-    return;
+    return res.status(500).json({ message: 'Erro interno do servidor ao buscar atividade recente.' });
   }
 };
 
@@ -230,8 +221,7 @@ export const getTopPerformers = async (req: AuthenticatedRequest, res: Response)
   const { role } = req.user!;
 
   if (role !== 'SUPER_ADMIN') {
-    res.status(403).json({ message: 'Acesso negado. Apenas SUPER_ADMIN pode acessar estes dados.' });
-    return;
+    return res.status(403).json({ message: 'Acesso negado. Apenas SUPER_ADMIN pode acessar estes dados.' });
   }
 
   try {
@@ -262,12 +252,10 @@ export const getTopPerformers = async (req: AuthenticatedRequest, res: Response)
       products: parseInt(row.total_products || 0)
     }));
 
-    res.status(200).json(performers);
-    return;
+    return res.status(200).json(performers);
   } catch (error) {
     console.error('Erro ao buscar top performers:', error);
-    res.status(500).json({ message: 'Erro interno do servidor ao buscar top performers.' });
-    return;
+    return res.status(500).json({ message: 'Erro interno do servidor ao buscar top performers.' });
   }
 };
 
@@ -276,8 +264,7 @@ export const getCriticalAlerts = async (req: AuthenticatedRequest, res: Response
   const { role } = req.user!;
 
   if (role !== 'SUPER_ADMIN') {
-    res.status(403).json({ message: 'Acesso negado. Apenas SUPER_ADMIN pode acessar estes dados.' });
-    return;
+    return res.status(403).json({ message: 'Acesso negado. Apenas SUPER_ADMIN pode acessar estes dados.' });
   }
 
   try {
@@ -344,12 +331,10 @@ export const getCriticalAlerts = async (req: AuthenticatedRequest, res: Response
       });
     }
 
-    res.status(200).json(alerts);
-    return;
+    return res.status(200).json(alerts);
   } catch (error) {
     console.error('Erro ao buscar alertas:', error);
-    res.status(500).json({ message: 'Erro interno do servidor ao buscar alertas.' });
-    return;
+    return res.status(500).json({ message: 'Erro interno do servidor ao buscar alertas.' });
   }
 };
 
@@ -359,8 +344,7 @@ export const getFranchiseMetrics = async (req: AuthenticatedRequest, res: Respon
   const franchiseId = parseInt(req.params.id);
 
   if (role !== 'SUPER_ADMIN') {
-    res.status(403).json({ message: 'Acesso negado. Apenas SUPER_ADMIN pode acessar métricas de franquias.' });
-    return;
+    return res.status(403).json({ message: 'Acesso negado. Apenas SUPER_ADMIN pode acessar métricas de franquias.' });
   }
 
   try {
@@ -436,9 +420,9 @@ export const getFranchiseMetrics = async (req: AuthenticatedRequest, res: Respon
       }))
     };
 
-    res.status(200).json(metrics);
+    return res.status(200).json(metrics);
   } catch (error) {
     console.error('Erro ao buscar métricas da franquia:', error);
-    res.status(500).json({ message: 'Erro interno do servidor ao buscar métricas da franquia.' });
+    return res.status(500).json({ message: 'Erro interno do servidor ao buscar métricas da franquia.' });
   }
 }; 
