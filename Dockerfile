@@ -1,32 +1,31 @@
-# Use Node.js 18 Alpine
-FROM node:18-alpine
+# --- frontend/Dockerfile ---
 
-# Set working directory
+# Estágio 1: Construir a aplicação React
+FROM node:18-alpine AS build
+
 WORKDIR /app
 
-# Copy package files first for better caching
+# Copiar arquivos de dependência
 COPY package*.json ./
-COPY backend/package*.json ./backend/
 
-# Install dependencies
-RUN npm ci --only=production
-RUN cd backend && npm ci --only=production
+# Instalar dependências
+RUN npm install
 
-# Copy source code
+# Copiar o código fonte
 COPY . .
 
-# Build frontend
+# Construir a aplicação para produção
 RUN npm run build
 
-# Build backend
-RUN cd backend && npm run build
+# Estágio 2: Servir a aplicação com Nginx
+FROM nginx:1.25-alpine
 
-# Expose port
-EXPOSE 3001
+# Copiar os arquivos estáticos construídos do estágio anterior
+COPY --from=build /app/dist /usr/share/nginx/html
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3001/api/healthcheck || exit 1
+# Copiar a configuração personalizada do Nginx (se você tiver uma, senão, pode remover esta linha)
+# COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Start the application
-CMD ["npm", "run", "start"] 
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+

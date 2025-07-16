@@ -21,7 +21,7 @@ services:
   # Backend Node.js
   backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
       target: runner
     container_name: lenzoocrm_backend
@@ -42,14 +42,12 @@ services:
 
   # Frontend (servido pelo nginx)
   frontend:
-    image: nginx:alpine
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: lenzoocrm_frontend
     ports:
       - "80:80"
-      - "443:443"
-    volumes:
-      - ./frontend/dist:/usr/share/nginx/html
-      - ./nginx.conf:/etc/nginx/nginx.conf
     depends_on:
       - backend
     restart: unless-stopped
