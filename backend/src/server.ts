@@ -12,8 +12,9 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middlewares
+const allowedOrigin = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGIN || 'http://localhost:5173',
+  origin: allowedOrigin === '*' ? true : allowedOrigin,
   credentials: true,
 }));
 app.use(express.json({ limit: '1mb' }));
