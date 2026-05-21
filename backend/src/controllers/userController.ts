@@ -1,13 +1,11 @@
 import { Request, Response } from 'express';
-import { Pool } from 'pg';
 import bcrypt from 'bcrypt';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import db from '../config/db';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+const pool = db;
 
 // Configuração do multer para upload de avatar
 const storage = multer.diskStorage({
