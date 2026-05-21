@@ -1,0 +1,27 @@
+node_modules
+
+# Ignora a pasta do backend ao construir o frontend
+backend/
+
+package-lock.json
+npm-debug.log
+.git
+.gitignore
+README.md
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.nyc_output
+coverage
+.DS_Store
+*.log
+.vscode
+.idea
+*.swp
+*.swo
+*~
+test-*.cjs
+*.test.js
+*.spec.js 
