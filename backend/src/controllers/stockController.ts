@@ -1,13 +1,6 @@
 import { Request, Response } from 'express';
 import db from '../config/db';
 
-interface Request extends Request {
-  user?: {
-    id: number;
-    role: 'SUPER_ADMIN' | 'FRANCHISE_ADMIN' | 'EMPLOYEE';
-    franchiseId: number | null;
-  };
-}
 
 // Registrar movimentação de estoque
 export const registerStockMovement = async (req: Request, res: Response): Promise<void> => {
@@ -88,7 +81,7 @@ export const listStockMovements = async (req: Request, res: Response): Promise<v
     let paramIndex = 1;
 
     // Filtrar por franquia
-    if (user?.role === 'FRANCHISE_ADMIN') {
+    if (user?.role === 'FRANCHISE_ADMIN' || user?.role === 'EMPLOYEE') {
       query += ` AND m.franchise_id = $${paramIndex++}`;
       params.push(user.franchiseId);
     } else if (user?.role === 'SUPER_ADMIN' && req.query.franchise_id) {
@@ -144,7 +137,7 @@ export const getStockMovementById = async (req: Request, res: Response): Promise
     const params: any[] = [id];
 
     // Filtrar por franquia
-    if (user?.role === 'FRANCHISE_ADMIN') {
+    if (user?.role === 'FRANCHISE_ADMIN' || user?.role === 'EMPLOYEE') {
       query += ' AND m.franchise_id = $2';
       params.push(user.franchiseId);
     }

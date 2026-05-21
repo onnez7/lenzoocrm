@@ -12,19 +12,14 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16', // Use uma versão válida e consistente
 });
 
-interface Request extends Request {
-  user?: {
-    id: number;
-    role: 'SUPER_ADMIN' | 'FRANCHISE_ADMIN' | 'EMPLOYEE';
-    franchiseId: number | null;
-  };
-}
 
-// Listar todas as assinaturas (apenas SUPER_ADMIN)
+// Listar assinaturas
 export const getAllSubscriptions = async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await pool.query(`
-      SELECT 
+    const { role, franchiseId } = req.user!;
+
+    let query = `
+      SELECT
         s.*,
         f.name as franchise_name,
         f.email as franchise_email,
@@ -32,17 +27,25 @@ export const getAllSubscriptions = async (req: Request, res: Response): Promise<
         sp.price as plan_price,
         sp.max_users,
         sp.max_stores,
-        CASE 
-          WHEN s.trial_end IS NOT NULL AND s.trial_end > CURRENT_DATE 
+        CASE
+          WHEN s.trial_end IS NOT NULL AND s.trial_end > CURRENT_DATE
           THEN EXTRACT(DAY FROM (s.trial_end - CURRENT_DATE))
           ELSE 0
         END as days_trial_remaining
       FROM subscriptions s
       JOIN franchises f ON s.franchise_id = f.id
       JOIN subscription_plans sp ON s.plan_id = sp.id
-      ORDER BY s.created_at DESC
-    `);
-    
+    `;
+    const params: unknown[] = [];
+
+    if (role === 'FRANCHISE_ADMIN') {
+      query += ' WHERE s.franchise_id = $1';
+      params.push(franchiseId);
+    }
+
+    query += ' ORDER BY s.created_at DESC';
+
+    const result = await pool.query(query, params);
     res.status(200).json(result.rows);
     return;
   } catch (error) {
@@ -54,11 +57,12 @@ export const getAllSubscriptions = async (req: Request, res: Response): Promise<
 
 // Buscar assinatura por ID
 export const getSubscriptionById = async (req: Request, res: Response): Promise<void> => {
+  const { role, franchiseId } = req.user!;
   const subscriptionId = parseInt(req.params.id);
 
   try {
-    const result = await pool.query(`
-      SELECT 
+    let query = `
+      SELECT
         s.*,
         f.name as franchise_name,
         f.email as franchise_email,
@@ -71,7 +75,15 @@ export const getSubscriptionById = async (req: Request, res: Response): Promise<
       JOIN franchises f ON s.franchise_id = f.id
       JOIN subscription_plans sp ON s.plan_id = sp.id
       WHERE s.id = $1
-    `, [subscriptionId]);
+    `;
+    const params: unknown[] = [subscriptionId];
+
+    if (role === 'FRANCHISE_ADMIN') {
+      query += ' AND s.franchise_id = $2';
+      params.push(franchiseId);
+    }
+
+    const result = await pool.query(query, params);
 
     if (result.rows.length === 0) {
       res.status(404).json({ message: 'Assinatura não encontrada.' });
@@ -89,16 +101,20 @@ export const getSubscriptionById = async (req: Request, res: Response): Promise<
 
 // Criar nova assinatura
 export const createSubscription = async (req: Request, res: Response): Promise<void> => {
+  const { role, franchiseId: userFranchiseId } = req.user!;
   const { franchise_id, plan_id, status, current_period_start, current_period_end, amount, billing_cycle } = req.body;
 
-  if (!franchise_id || !plan_id) {
+  // FRANCHISE_ADMIN só pode criar assinatura para sua própria franquia
+  const finalFranchiseId = role === 'FRANCHISE_ADMIN' ? userFranchiseId : franchise_id;
+
+  if (!finalFranchiseId || !plan_id) {
     res.status(400).json({ message: 'ID da franquia e ID do plano são obrigatórios.' });
     return;
   }
 
   try {
     // Verificar se franquia existe
-    const franchiseCheck = await pool.query('SELECT id FROM franchises WHERE id = $1', [franchise_id]);
+    const franchiseCheck = await pool.query('SELECT id FROM franchises WHERE id = $1', [finalFranchiseId]);
     if (franchiseCheck.rows.length === 0) {
       res.status(404).json({ message: 'Franquia não encontrada.' });
       return;
@@ -129,9 +145,9 @@ export const createSubscription = async (req: Request, res: Response): Promise<v
     }
 
     const result = await pool.query(
-      `INSERT INTO subscriptions (franchise_id, plan_id, status, current_period_start, current_period_end, amount, billing_cycle) 
+      `INSERT INTO subscriptions (franchise_id, plan_id, status, current_period_start, current_period_end, amount, billing_cycle)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [franchise_id, plan_id, status || 'active', periodStart, periodEnd, amount || planPrice, planBillingCycle]
+      [finalFranchiseId, plan_id, status || 'active', periodStart, periodEnd, amount || planPrice, planBillingCycle]
     );
 
     res.status(201).json(result.rows[0]);
@@ -365,16 +381,21 @@ export const deletePlan = async (req: Request, res: Response): Promise<void> => 
 // Obter métricas de assinaturas
 export const getSubscriptionMetrics = async (req: Request, res: Response): Promise<void> => {
   try {
+    const { role, franchiseId } = req.user!;
+
+    const whereClause = role === 'FRANCHISE_ADMIN' ? 'WHERE franchise_id = $1' : '';
+    const params = role === 'FRANCHISE_ADMIN' ? [franchiseId] : [];
+
     const result = await pool.query(`
-      SELECT 
+      SELECT
         COUNT(*) as total_subscriptions,
         COUNT(CASE WHEN status = 'active' THEN 1 END) as active_subscriptions,
         COUNT(CASE WHEN status = 'trialing' THEN 1 END) as trial_subscriptions,
         COUNT(CASE WHEN status = 'canceled' THEN 1 END) as canceled_subscriptions,
         COUNT(CASE WHEN status = 'past_due' THEN 1 END) as past_due_subscriptions,
         SUM(CASE WHEN status = 'active' THEN amount ELSE 0 END) as mrr
-      FROM subscriptions
-    `);
+      FROM subscriptions ${whereClause}
+    `, params);
 
     res.status(200).json(result.rows[0]);
     return;

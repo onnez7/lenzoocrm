@@ -1,18 +1,5 @@
 import { Request, Response } from 'express';
 import db from '../config/db';
-import { Pool } from 'pg';
-
-interface Request extends Request {
-  user?: {
-    id: number;
-    role: 'SUPER_ADMIN' | 'FRANCHISE_ADMIN' | 'EMPLOYEE';
-    franchiseId: number | null;
-  };
-}
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
 
 // Listar todas as franquias (apenas SUPER_ADMIN)
 export const getAllFranchises = async (req: Request, res: Response): Promise<void> => {
@@ -212,11 +199,18 @@ export const deleteFranchise = async (req: Request, res: Response): Promise<void
 };
 
 export const getFranchiseMembers = async (req: Request, res: Response) => {
+  const { role, franchiseId: userFranchiseId } = req.user!;
+  const requestedFranchiseId = parseInt(req.params.id);
+
+  if (role !== 'SUPER_ADMIN' && userFranchiseId !== requestedFranchiseId) {
+    res.status(403).json({ message: 'Acesso negado.' });
+    return;
+  }
+
   try {
-    const franchiseId = parseInt(req.params.id);
-    const result = await pool.query(
+    const result = await db.query(
       `SELECT id, name, email, role, avatar FROM users WHERE franchise_id = $1 ORDER BY name`,
-      [franchiseId]
+      [requestedFranchiseId]
     );
     res.status(200).json(result.rows);
   } catch (error) {

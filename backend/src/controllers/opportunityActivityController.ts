@@ -1,42 +1,62 @@
 import { Request, Response } from 'express';
 import db from '../config/db';
 
-interface Request extends Request {
-  user?: {
-    id: number;
-    role: 'SUPER_ADMIN' | 'FRANCHISE_ADMIN' | 'EMPLOYEE';
-    franchiseId: number | null;
-  };
+// SQL reutilizável: verifica se uma atividade pertence à franquia do usuário
+const ACTIVITY_FRANCHISE_CHECK = `
+  SELECT oa.id FROM opportunity_activities oa
+  JOIN opportunities o ON oa.opportunity_id = o.id
+  JOIN clients c ON o.client_id = c.id
+  WHERE oa.id = $1 AND c.franchise_id = $2
+`;
+
+// SQL reutilizável: verifica se uma oportunidade pertence à franquia do usuário
+const OPPORTUNITY_FRANCHISE_CHECK = `
+  SELECT o.id FROM opportunities o
+  JOIN clients c ON o.client_id = c.id
+  WHERE o.id = $1 AND c.franchise_id = $2
+`;
+
+async function assertActivityOwnership(role: string, franchiseId: number | null, activityId: number, res: Response): Promise<boolean> {
+  if (role === 'SUPER_ADMIN') return true;
+  const check = await db.query(ACTIVITY_FRANCHISE_CHECK, [activityId, franchiseId]);
+  if (check.rows.length === 0) {
+    res.status(403).json({ message: 'Acesso negado.' });
+    return false;
+  }
+  return true;
 }
 
-// Listar atividades de uma oportunidade
+async function assertOpportunityOwnership(role: string, franchiseId: number | null, opportunityId: number, res: Response): Promise<boolean> {
+  if (role === 'SUPER_ADMIN') return true;
+  const check = await db.query(OPPORTUNITY_FRANCHISE_CHECK, [opportunityId, franchiseId]);
+  if (check.rows.length === 0) {
+    res.status(403).json({ message: 'Acesso negado.' });
+    return false;
+  }
+  return true;
+}
+
 export const getOpportunityActivities = async (req: Request, res: Response) => {
   try {
+    const { role, franchiseId } = req.user!;
     const opportunityId = parseInt(req.params.opportunityId);
     const { status, priority, activityType } = req.query;
-    
+
+    if (!await assertOpportunityOwnership(role, franchiseId, opportunityId, res)) return;
+
     let query = `
-      SELECT oa.*, u.name as assigned_to_name, c.name as created_by_name 
-      FROM opportunity_activities oa 
-      LEFT JOIN users u ON oa.assigned_to = u.id 
-      LEFT JOIN users c ON oa.created_by = c.id 
+      SELECT oa.*, u.name as assigned_to_name, c.name as created_by_name
+      FROM opportunity_activities oa
+      LEFT JOIN users u ON oa.assigned_to = u.id
+      LEFT JOIN users c ON oa.created_by = c.id
       WHERE oa.opportunity_id = $1
     `;
-    const params: any[] = [opportunityId];
+    const params: unknown[] = [opportunityId];
     let idx = 2;
 
-    if (status) {
-      query += ` AND oa.status = $${idx++}`;
-      params.push(status);
-    }
-    if (priority) {
-      query += ` AND oa.priority = $${idx++}`;
-      params.push(priority);
-    }
-    if (activityType) {
-      query += ` AND oa.activity_type = $${idx++}`;
-      params.push(activityType);
-    }
+    if (status) { query += ` AND oa.status = $${idx++}`; params.push(status); }
+    if (priority) { query += ` AND oa.priority = $${idx++}`; params.push(priority); }
+    if (activityType) { query += ` AND oa.activity_type = $${idx++}`; params.push(activityType); }
 
     query += ` ORDER BY oa.due_date ASC, oa.due_time ASC, oa.created_at DESC`;
 
@@ -48,18 +68,21 @@ export const getOpportunityActivities = async (req: Request, res: Response) => {
   }
 };
 
-// Buscar atividade por ID
 export const getActivityById = async (req: Request, res: Response) => {
   try {
+    const { role, franchiseId } = req.user!;
     const id = parseInt(req.params.id);
+
+    if (!await assertActivityOwnership(role, franchiseId, id, res)) return;
+
     const result = await db.query(`
-      SELECT oa.*, u.name as assigned_to_name, c.name as created_by_name 
-      FROM opportunity_activities oa 
-      LEFT JOIN users u ON oa.assigned_to = u.id 
-      LEFT JOIN users c ON oa.created_by = c.id 
+      SELECT oa.*, u.name as assigned_to_name, c.name as created_by_name
+      FROM opportunity_activities oa
+      LEFT JOIN users u ON oa.assigned_to = u.id
+      LEFT JOIN users c ON oa.created_by = c.id
       WHERE oa.id = $1
     `, [id]);
-    
+
     if (result.rows.length === 0) {
       res.status(404).json({ message: 'Atividade não encontrada.' });
       return;
@@ -71,36 +94,28 @@ export const getActivityById = async (req: Request, res: Response) => {
   }
 };
 
-// Criar nova atividade
 export const createActivity = async (req: Request, res: Response) => {
   try {
+    const { role, franchiseId } = req.user!;
     const opportunityId = parseInt(req.params.opportunityId);
-    const { 
-      title, 
-      description, 
-      activity_type, 
-      status, 
-      priority, 
-      due_date, 
-      due_time, 
-      assigned_to, 
-      notes 
-    } = req.body;
+    const { title, description, activity_type, status, priority, due_date, due_time, assigned_to, notes } = req.body;
 
     if (!title || !opportunityId) {
       res.status(400).json({ message: 'Título e ID da oportunidade são obrigatórios.' });
       return;
     }
 
+    if (!await assertOpportunityOwnership(role, franchiseId, opportunityId, res)) return;
+
     const result = await db.query(
       `INSERT INTO opportunity_activities (
-        opportunity_id, title, description, activity_type, status, priority, 
+        opportunity_id, title, description, activity_type, status, priority,
         due_date, due_time, assigned_to, created_by, notes
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
       [
-        opportunityId, title, description || null, activity_type || 'task', 
+        opportunityId, title, description || null, activity_type || 'task',
         status || 'pending', priority || 'medium', due_date || null, due_time || null,
-        assigned_to || null, req.user!.id, notes || null
+        assigned_to || null, req.user!.id, notes || null,
       ]
     );
 
@@ -111,24 +126,16 @@ export const createActivity = async (req: Request, res: Response) => {
   }
 };
 
-// Atualizar atividade
 export const updateActivity = async (req: Request, res: Response) => {
   try {
+    const { role, franchiseId } = req.user!;
     const id = parseInt(req.params.id);
-    const { 
-      title, 
-      description, 
-      activity_type, 
-      status, 
-      priority, 
-      due_date, 
-      due_time, 
-      assigned_to, 
-      notes 
-    } = req.body;
+    const { title, description, activity_type, status, priority, due_date, due_time, assigned_to, notes } = req.body;
+
+    if (!await assertActivityOwnership(role, franchiseId, id, res)) return;
 
     const result = await db.query(
-      `UPDATE opportunity_activities SET 
+      `UPDATE opportunity_activities SET
         title = COALESCE($1, title),
         description = COALESCE($2, description),
         activity_type = COALESCE($3, activity_type),
@@ -147,7 +154,6 @@ export const updateActivity = async (req: Request, res: Response) => {
       res.status(404).json({ message: 'Atividade não encontrada.' });
       return;
     }
-
     res.status(200).json(result.rows[0]);
   } catch (error) {
     console.error('Erro ao atualizar atividade:', error);
@@ -155,9 +161,9 @@ export const updateActivity = async (req: Request, res: Response) => {
   }
 };
 
-// Atualizar status da atividade
 export const updateActivityStatus = async (req: Request, res: Response) => {
   try {
+    const { role, franchiseId } = req.user!;
     const id = parseInt(req.params.id);
     const { status } = req.body;
 
@@ -166,13 +172,15 @@ export const updateActivityStatus = async (req: Request, res: Response) => {
       return;
     }
 
+    if (!await assertActivityOwnership(role, franchiseId, id, res)) return;
+
     const completedAt = status === 'completed' ? 'CURRENT_TIMESTAMP' : 'NULL';
-    
+
     const result = await db.query(
-      `UPDATE opportunity_activities SET 
-        status = $1, 
+      `UPDATE opportunity_activities SET
+        status = $1,
         completed_at = ${completedAt},
-        updated_at = CURRENT_TIMESTAMP 
+        updated_at = CURRENT_TIMESTAMP
       WHERE id = $2 RETURNING *`,
       [status, id]
     );
@@ -181,7 +189,6 @@ export const updateActivityStatus = async (req: Request, res: Response) => {
       res.status(404).json({ message: 'Atividade não encontrada.' });
       return;
     }
-
     res.status(200).json(result.rows[0]);
   } catch (error) {
     console.error('Erro ao atualizar status da atividade:', error);
@@ -189,20 +196,25 @@ export const updateActivityStatus = async (req: Request, res: Response) => {
   }
 };
 
-// Deletar atividade
 export const deleteActivity = async (req: Request, res: Response) => {
   try {
+    const { role, franchiseId } = req.user!;
     const id = parseInt(req.params.id);
-    const result = await db.query('DELETE FROM opportunity_activities WHERE id = $1 RETURNING id', [id]);
-    
+
+    if (!await assertActivityOwnership(role, franchiseId, id, res)) return;
+
+    const result = await db.query(
+      'DELETE FROM opportunity_activities WHERE id = $1 RETURNING id',
+      [id]
+    );
+
     if (result.rows.length === 0) {
       res.status(404).json({ message: 'Atividade não encontrada.' });
       return;
     }
-
     res.status(200).json({ message: 'Atividade deletada com sucesso.' });
   } catch (error) {
     console.error('Erro ao deletar atividade:', error);
     res.status(500).json({ message: 'Erro ao deletar atividade.' });
   }
-}; 
+};
