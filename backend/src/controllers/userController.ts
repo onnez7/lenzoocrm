@@ -9,14 +9,6 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-interface Request extends Request {
-  user?: {
-    id: number;
-    role: 'SUPER_ADMIN' | 'FRANCHISE_ADMIN' | 'EMPLOYEE';
-    franchiseId: number | null;
-  };
-}
-
 // Configuração do multer para upload de avatar
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -55,18 +47,14 @@ export const getUserProfile = async (req: Request, res: Response): Promise<void>
     }
 
     const result = await pool.query(`
-      SELECT 
+      SELECT
         u.id,
         u.name,
         u.email,
-        u.phone,
         u.role,
         u.franchise_id,
-        u.avatar,
-        u.bio,
-        u.address,
-        u.last_login,
-        u.is_active,
+        u.avatar_url as avatar,
+        u.created_at,
         f.name as franchise_name
       FROM users u
       LEFT JOIN franchises f ON u.franchise_id = f.id
@@ -104,7 +92,7 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const { name, email, phone, bio, address } = req.body;
+    const { name, email } = req.body;
 
     // Verificar se o email já existe (exceto para o usuário atual)
     if (email) {
@@ -112,7 +100,7 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<vo
         'SELECT id FROM users WHERE email = $1 AND id != $2',
         [email, req.user.id]
       );
-      
+
       if (emailCheck.rows.length > 0) {
         res.status(400).json({ message: 'Este email já está em uso' });
         return;
@@ -132,21 +120,6 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<vo
     if (email !== undefined) {
       updateFields.push(`email = $${paramIndex++}`);
       updateValues.push(email);
-    }
-
-    if (phone !== undefined) {
-      updateFields.push(`phone = $${paramIndex++}`);
-      updateValues.push(phone);
-    }
-
-    if (bio !== undefined) {
-      updateFields.push(`bio = $${paramIndex++}`);
-      updateValues.push(bio);
-    }
-
-    if (address !== undefined) {
-      updateFields.push(`address = $${paramIndex++}`);
-      updateValues.push(JSON.stringify(address));
     }
 
     if (updateFields.length === 0) {
@@ -328,7 +301,7 @@ export const uploadAvatar = async (req: Request, res: Response): Promise<void> =
 
     // Atualizar avatar no banco
     await pool.query(
-      'UPDATE users SET avatar = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      'UPDATE users SET avatar_url = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
       [avatarUrl, req.user.id]
     );
 
@@ -346,13 +319,12 @@ export const uploadAvatarMiddleware = upload.single('avatar');
 export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await pool.query(`
-      SELECT 
+      SELECT
         u.id,
         u.name,
         u.email,
         u.role,
         u.franchise_id,
-        u.is_active,
         u.created_at,
         f.name as franchise_name
       FROM users u
@@ -373,13 +345,12 @@ export const getUserById = async (req: Request, res: Response): Promise<void> =>
     const userId = parseInt(req.params.id);
 
     const result = await pool.query(`
-      SELECT 
+      SELECT
         u.id,
         u.name,
         u.email,
         u.role,
         u.franchise_id,
-        u.is_active,
         u.created_at,
         f.name as franchise_name
       FROM users u

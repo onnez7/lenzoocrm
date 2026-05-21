@@ -1,13 +1,6 @@
 import { Request, Response } from 'express';
 import db from '../config/db';
 
-interface Request extends Request {
-  user?: {
-    id: number;
-    role: 'SUPER_ADMIN' | 'FRANCHISE_ADMIN' | 'EMPLOYEE';
-    franchiseId: number | null;
-  };
-}
 
 // Listar todos os produtos (com filtro por franquia, paginação e busca)
 export const getAllProducts = async (req: Request, res: Response): Promise<void> => {
@@ -40,15 +33,13 @@ export const getAllProducts = async (req: Request, res: Response): Promise<void>
       queryParams.push(targetFranchiseId);
     }
 
-    // Busca por nome, descrição, marca, SKU, modelo, código de barras ou categoria
+    // Busca por nome, descrição, marca, SKU ou categoria
     if (search) {
       whereConditions.push(`(
-        p.name ILIKE $${paramIndex} OR 
-        p.description ILIKE $${paramIndex} OR 
-        p.sku ILIKE $${paramIndex} OR 
-        p.model ILIKE $${paramIndex} OR 
-        p.barcode ILIKE $${paramIndex} OR 
-        c.name ILIKE $${paramIndex} OR 
+        p.name ILIKE $${paramIndex} OR
+        p.description ILIKE $${paramIndex} OR
+        p.sku ILIKE $${paramIndex} OR
+        c.name ILIKE $${paramIndex} OR
         b.name ILIKE $${paramIndex}
       )`);
       queryParams.push(`%${search}%`);
@@ -67,28 +58,9 @@ export const getAllProducts = async (req: Request, res: Response): Promise<void>
     `;
     const countResult = await db.query(countQuery, queryParams);
     const total = parseInt(countResult.rows[0].total);
-
-    // Query para contar produtos ativos
-    const activeCountQuery = `
-      SELECT COUNT(*) as active
-      FROM products p
-      LEFT JOIN categories c ON p.category_id = c.id
-      LEFT JOIN brands b ON p.brand_id = b.id
-      ${whereClause} ${whereConditions.length > 0 ? 'AND' : 'WHERE'} p.status = 'active'
-    `;
-    const activeCountResult = await db.query(activeCountQuery, queryParams);
-    const active = parseInt(activeCountResult.rows[0].active);
-
-    // Query para contar produtos inativos
-    const inactiveCountQuery = `
-      SELECT COUNT(*) as inactive
-      FROM products p
-      LEFT JOIN categories c ON p.category_id = c.id
-      LEFT JOIN brands b ON p.brand_id = b.id
-      ${whereClause} ${whereConditions.length > 0 ? 'AND' : 'WHERE'} p.status = 'inactive'
-    `;
-    const inactiveCountResult = await db.query(inactiveCountQuery, queryParams);
-    const inactive = parseInt(inactiveCountResult.rows[0].inactive);
+    // products table has no status column — expose total as the only count
+    const active = total;
+    const inactive = 0;
 
     // Query principal para buscar produtos
     const productsQuery = `
@@ -174,20 +146,7 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
 // Criar novo produto
 export const createProduct = async (req: Request, res: Response): Promise<void> => {
   const { role, franchiseId } = req.user!;
-  const { 
-    name, 
-    description, 
-    price, 
-    cost, 
-    stock_quantity, 
-    min_stock, 
-    category_id, 
-    brand_id, 
-    sku, 
-    model, 
-    barcode, 
-    targetFranchiseId 
-  } = req.body;
+  const { name, description, price, cost, stock_quantity, category_id, brand_id, sku, targetFranchiseId } = req.body;
 
   // Validações
   if (!name || !price) {
@@ -216,10 +175,10 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
 
     // Inserir produto
     const newProductResult = await db.query(
-      `INSERT INTO products (name, description, price, cost, stock_quantity, min_stock, category_id, brand_id, sku, model, barcode, franchise_id) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
-       RETURNING id, name, description, price, cost, stock_quantity, min_stock, category_id, brand_id, sku, model, barcode, franchise_id, created_at`,
-      [name, description, price, cost, stock_quantity || 0, min_stock || 0, category_id, brand_id, sku, model, barcode, finalFranchiseId]
+      `INSERT INTO products (name, description, price, cost, stock_quantity, category_id, brand_id, sku, franchise_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id, name, description, price, cost, stock_quantity, category_id, brand_id, sku, franchise_id, created_at`,
+      [name, description, price, cost, stock_quantity || 0, category_id, brand_id, sku, finalFranchiseId]
     );
 
     res.status(201).json(newProductResult.rows[0]);
@@ -242,20 +201,7 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
     return;
   }
 
-  const { 
-    name, 
-    description, 
-    price, 
-    cost, 
-    stock_quantity, 
-    min_stock, 
-    category_id, 
-    brand_id, 
-    sku, 
-    model, 
-    barcode, 
-    targetFranchiseId 
-  } = req.body;
+  const { name, description, price, cost, stock_quantity, category_id, brand_id, sku, targetFranchiseId } = req.body;
 
   try {
     // Verificar se o produto existe e tem permissão para editá-lo
@@ -308,11 +254,6 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
       updateParams.push(stock_quantity);
     }
 
-    if (min_stock !== undefined) {
-      updateFields.push(`min_stock = $${paramIndex++}`);
-      updateParams.push(min_stock);
-    }
-
     if (category_id !== undefined) {
       updateFields.push(`category_id = $${paramIndex++}`);
       updateParams.push(category_id);
@@ -326,16 +267,6 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
     if (sku !== undefined) {
       updateFields.push(`sku = $${paramIndex++}`);
       updateParams.push(sku);
-    }
-
-    if (model !== undefined) {
-      updateFields.push(`model = $${paramIndex++}`);
-      updateParams.push(model);
-    }
-
-    if (barcode !== undefined) {
-      updateFields.push(`barcode = $${paramIndex++}`);
-      updateParams.push(barcode);
     }
 
     if (targetFranchiseId && role === 'SUPER_ADMIN') {
