@@ -1,13 +1,6 @@
 import { Request, Response } from 'express';
 import db from '../config/db';
 
-interface Request extends Request {
-  user?: {
-    id: number;
-    role: 'SUPER_ADMIN' | 'FRANCHISE_ADMIN' | 'EMPLOYEE';
-    franchiseId: number | null;
-  };
-}
 
 // Listar oportunidades (com filtros)
 export const getAllOpportunities = async (req: Request, res: Response) => {

@@ -56,7 +56,6 @@ import AdminSubscriptions from "@/pages/admin/AdminSubscriptions";
 import AdminUsage from "@/pages/admin/AdminUsage";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import NotFound from "@/pages/NotFound";
-//import AdminSupport from "@/pages/admin/AdminSupport";
 import NewRule from "@/pages/crm/NewRule";
 import AdminFinance from "@/pages/admin/AdminFinance";
 import UsersAdmin from "@/pages/admin/UsersAdmin";

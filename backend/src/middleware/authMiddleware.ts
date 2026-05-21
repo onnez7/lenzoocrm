@@ -9,6 +9,18 @@ interface TokenPayload {
   exp: number;
 }
 
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        id: number;
+        role: 'SUPER_ADMIN' | 'FRANCHISE_ADMIN' | 'EMPLOYEE';
+        franchiseId: number | null;
+      };
+    }
+  }
+}
+
 export const authenticateToken = (req: Request, res: Response, next: NextFunction): void => {
   const authHeader = req.headers.authorization;
 

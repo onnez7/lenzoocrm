@@ -1,82 +1,102 @@
 # LenzooCRM
 
-Sistema de gestão para óticas.
+Sistema de gestão completo para franquias de óticas, com suporte a múltiplas filiais, gerenciamento de estoque, agendamentos e financeiro integrado.
 
-## Como rodar o projeto localmente
-```sh
+## Stack Tecnológico
+
+- **Frontend:** React 18 + TypeScript + Vite
+- **Backend:** Express + TypeScript + Node.js
+- **Banco de Dados:** PostgreSQL
+- **Styling:** Tailwind CSS + shadcn/ui
+- **State Management:** React Query + Context API
+
+## Como Rodar Localmente
+
+### Pré-requisitos
+- Node.js >= 18.0.0
+- npm >= 8.0.0
+- PostgreSQL configurado
+
+### Setup
+
+```bash
 # Clone o repositório
- git clone <SEU_GIT_URL>
+git clone <SEU_GIT_URL>
+cd lenzoocrm
 
-# Entre na pasta do projeto
-cd <NOME_DO_PROJETO>
-
-## Frontend
-# Entre na pasta raiz e instale as dependências do frontend
+# Instale dependências do frontend
 npm install
 
-# Rode o servidor de desenvolvimento do frontend
-npm run dev
+# Instale dependências do backend
+cd backend && npm install && cd ..
 
-## Backend
-# Em outro terminal, entre na pasta do backend
-cd backend
-
-# Instale as dependências do backend
-npm install
-
-# Rode o servidor de desenvolvimento do backend
-npm run dev
+# Configure as variáveis de ambiente
+cp .env.example .env
+cp backend/.env.example backend/.env
+# Edite os arquivos .env com suas credenciais
 ```
 
-## Tecnologias utilizadas
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Rodando em Desenvolvimento
 
-## Project info
-
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+# Terminal 1 - Frontend
 npm run dev
+
+# Terminal 2 - Backend
+npm run backend:dev
 ```
 
-**Edit a file directly in GitHub**
+O frontend estará disponível em `http://localhost:5173`
+O backend estará disponível em `http://localhost:3000`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Build para Produção
 
-**Use GitHub Codespaces**
+```bash
+npm run deploy:build
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Estrutura do Projeto
 
-## How can I deploy this project?
+```
+lenzoocrm/
+├── src/                    # Frontend (React + TypeScript)
+│   ├── components/         # Componentes reutilizáveis
+│   ├── pages/             # Páginas da aplicação
+│   ├── contexts/          # Context API
+│   ├── hooks/             # Custom hooks
+│   └── services/          # Serviços HTTP
+├── backend/               # Backend (Express + TypeScript)
+│   ├── src/
+│   │   ├── controllers/   # Controladores
+│   │   ├── routes/        # Rotas
+│   │   ├── services/      # Lógica de negócio
+│   │   ├── middleware/    # Middlewares
+│   │   └── types/         # Tipos TypeScript
+│   └── package.json
+└── package.json
+```
 
+## Recursos Principais
 
-Yes, you can!
+- 👥 Gestão de clientes e contatos
+- 📦 Gestão completa de estoque
+- 🏪 Múltiplas filiais/franquias
+- 📅 Agendamentos e calendário
+- 💰 Módulo financeiro (contas a receber/pagar)
+- 📊 Relatórios e analytics
+- 🔐 Controle de permissões por roles
+- 💬 Chat entre franquias
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Roles e Permissões
 
-"# lenzoocrm" 
+- **SUPER_ADMIN:** Acesso total ao sistema
+- **FRANCHISE_ADMIN:** Administrador de franquia
+- **EMPLOYEE:** Usuário operacional
+
+## Deploy
+
+Para informações sobre deploy, consulte a documentação no diretório `backend/` ou configure via EasyPanel usando `easypanel.yaml`.
+
+## Licença
+
+Proprietary - Todos os direitos reservados

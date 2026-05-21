@@ -1,5 +1,0 @@
-{
-  "build": {
-    "type": "docker-compose"
-  }
-} 

@@ -5,13 +5,6 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-interface Request extends Request {
-  user?: {
-    id: number;
-    role: "SUPER_ADMIN" | "FRANCHISE_ADMIN" | "EMPLOYEE";
-    franchiseId: number | null;
-  };
-}
 
 // Franqueado abre um ticket
 export const createTicket = async (req: Request, res: Response) => {
