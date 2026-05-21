@@ -121,7 +121,7 @@ const UsersAdmin = () => {
   };
 
   const handleFranchiseChange = (value: string) => {
-    setForm({ ...form, franchiseId: value });
+    setForm({ ...form, franchiseId: value === 'none' ? '' : value });
   };
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -288,7 +288,7 @@ const UsersAdmin = () => {
                     <SelectValue placeholder="Selecione a franquia (opcional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sem franquia</SelectItem>
+                    <SelectItem value="none">Sem franquia</SelectItem>
                     {franchises.map((franchise) => (
                       <SelectItem key={franchise.id} value={franchise.id.toString()}>
                         {franchise.name}
