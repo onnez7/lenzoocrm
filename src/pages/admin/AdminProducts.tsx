@@ -87,7 +87,7 @@ const AdminProducts = () => {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
-        setProducts(data);
+        setProducts(Array.isArray(data) ? data : (data.products ?? []));
       } catch (err) {
         toast({ title: 'Erro', description: 'Erro ao buscar produtos', variant: 'destructive' });
       }
