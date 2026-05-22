@@ -1,9 +1,7 @@
 import { Request, Response } from 'express';
-import { Pool } from 'pg';
+import db from '../config/db';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+const pool = db;
 
 
 // Retorna o canal da franquia do usuário (cria se não existir)

@@ -1,12 +1,10 @@
 import { Request, Response } from 'express';
-import { Pool } from 'pg';
+import db from '../config/db';
 import Stripe from 'stripe';
 import { StripeService } from '../services/stripeService';
 import { NotificationService } from '../services/notificationService';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+const pool = db;
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16', // Use uma versão válida e consistente
@@ -29,7 +27,7 @@ export const getAllSubscriptions = async (req: Request, res: Response): Promise<
         sp.max_stores,
         CASE
           WHEN s.trial_end IS NOT NULL AND s.trial_end > CURRENT_DATE
-          THEN EXTRACT(DAY FROM (s.trial_end - CURRENT_DATE))
+          THEN (s.trial_end::date - CURRENT_DATE)
           ELSE 0
         END as days_trial_remaining
       FROM subscriptions s
